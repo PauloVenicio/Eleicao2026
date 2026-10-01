@@ -50,6 +50,9 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 <button class="primary" id="refresh">↻ Atualizar</button>
 <button class="secondary" id="theme">☾ Tema</button>
 <button id="tvBtn">📺 Modo TV</button>
+<button class="secondary" id="exportFav">⬇ Backup favoritos</button>
+<button class="secondary" id="importFav">⬆ Restaurar favoritos</button>
+<input type="file" id="importFavFile" accept="application/json,.json" hidden>
 </section>
 <section class="status card"><h3><span class="dot"></span><span id="state">Preparando consulta…</span></h3><p id="detail">Aguardando.</p></section>
 <section class="stats">
@@ -176,6 +179,26 @@ $("tvFull").onclick=async()=>{try{if(!document.fullscreenElement)await $("tvOver
 uf.onchange=()=>{localStorage.setItem("eleicoesUF",uf.value);load()};cargo.onchange=()=>{localStorage.setItem("eleicoesCargo",cargo.value);load()};party.onchange=apply;search.oninput=apply;search.onkeyup=apply;search.onchange=apply;$("refresh").onclick=load;
 $("prev").onclick=()=>{if(page>1){page--;render()}};$("next").onclick=()=>{if(page*perPage<filtered.length){page++;render()}};
 $("theme").onclick=()=>{document.body.classList.toggle("light");localStorage.setItem("eleicoesTema",document.body.classList.contains("light")?"light":"dark")};if(localStorage.getItem("eleicoesTema")==="light")document.body.classList.add("light");
+
+function exportFavorites(){
+ const backup={tipo:"Painel Eleições 2026 - Favoritos",versao:1,exportado:new Date().toISOString(),favoritos:favorites,modoTV:tvSaved};
+ const blob=new Blob([JSON.stringify(backup,null,2)],{type:"application/json"});
+ const url=URL.createObjectURL(blob),a=document.createElement("a");
+ a.href=url;a.download="eleicoes-2026-favoritos.json";document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),1000);
+}
+async function importFavorites(file){
+ try{
+  const d=JSON.parse(await file.text());
+  if(!Array.isArray(d.favoritos)||!Array.isArray(d.modoTV))throw new Error("Arquivo inválido");
+  favorites=[...new Set(d.favoritos.map(String))];tvSaved=d.modoTV;
+  localStorage.setItem("eleicoesFav",JSON.stringify(favorites));localStorage.setItem("eleicoesTV",JSON.stringify(tvSaved));
+  render();renderTV(false);alert("Favoritos restaurados com sucesso: "+tvSaved.length+" candidato(s).");
+ }catch(e){alert("Não foi possível restaurar o backup. Selecione um arquivo gerado pelo próprio painel.")}
+}
+$("exportFav").onclick=exportFavorites;
+$("importFav").onclick=()=>$("importFavFile").click();
+$("importFavFile").onchange=e=>{const file=e.target.files?.[0];if(file)importFavorites(file);e.target.value=""};
+
 load();
 </script>
 </body></html>
