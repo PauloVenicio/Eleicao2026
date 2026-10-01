@@ -80,7 +80,7 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 <footer>PAINEL ELEIÇÕES 2026 • PROJETO INDEPENDENTE • PAULO CARVALHO DEV</footer>
 <script>
 const UFS=["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
-const OFFICES=[["1","Presidente"],["2","Vice-Presidente"],["3","Governador"],["4","Vice-Governador"],["5","Senador"],["9","1º Suplente de Senador"],["10","2º Suplente de Senador"],["6","Deputado Federal"],["7","Deputado Estadual"],["8","Deputado Distrital"]];
+const OFFICES=[["1","Presidente"],["3","Governador"],["5","Senador"],["9","1º Suplente de Senador"],["10","2º Suplente de Senador"],["6","Deputado Federal"],["7","Deputado Estadual"],["8","Deputado Distrital"]];
 const $=id=>document.getElementById(id),uf=$("uf"),cargo=$("cargo"),party=$("party"),search=$("search");
 UFS.forEach(x=>uf.add(new Option(x,x))); OFFICES.forEach(x=>cargo.add(new Option(x[1],x[0])));
 uf.value=localStorage.getItem("eleicoesUF")||"MA"; cargo.value=localStorage.getItem("eleicoesCargo")||"3";
