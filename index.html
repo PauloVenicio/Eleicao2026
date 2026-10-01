@@ -17,6 +17,17 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 .empty{padding:25px;text-align:center;color:var(--muted);font-size:11px;line-height:1.6}.pager{display:flex;justify-content:center;align-items:center;gap:8px;margin:14px 0}.pager button{background:#223650;color:#fff}.pager button:disabled{opacity:.35}.pager span{font-size:10px;color:var(--muted)}
 .info{margin-top:17px;padding:15px}.info p{font-size:10px;color:var(--muted);line-height:1.55}footer{text-align:center;padding:25px 12px;color:#65778e;font-size:9px}.light{--bg:#eef3f8;--card:#fff;--card2:#f8fafc;--text:#142033;--muted:#65758b;--line:rgba(0,0,0,.09)}.light select,.light input{background:#fff;color:#142033}
 @media(min-width:800px){.controls{grid-template-columns:1fr 1.25fr 1fr 1.4fr auto auto;align-items:end}.wide{grid-column:auto}.stats{grid-template-columns:repeat(4,1fr)}.grid{grid-template-columns:1fr 1fr}}
+
+#tvBtn{background:#6b5cff;color:#fff}
+.tvOverlay{position:fixed;inset:0;z-index:9999;background:#050c17;color:#fff;display:none;overflow:auto}
+.tvOverlay.open{display:block}.tvHead{position:sticky;top:0;z-index:3;background:rgba(5,12,23,.94);backdrop-filter:blur(10px);border-bottom:1px solid rgba(255,255,255,.1);padding:14px 20px;display:flex;align-items:center;justify-content:space-between;gap:15px}
+.tvTitle small{display:block;color:#21d07a;font-size:10px;letter-spacing:2px;font-weight:900}.tvTitle strong{font-size:25px}.tvActions{display:flex;gap:8px}.tvActions button{background:#17263b;color:#fff}.tvActions .live{background:#21d07a;color:#032113}
+.tvBody{padding:20px;max-width:1600px;margin:auto}.tvInfo{display:flex;justify-content:space-between;gap:15px;color:#91a3ba;font-size:12px;margin-bottom:16px}.tvGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}
+.tvCard{position:relative;background:linear-gradient(145deg,#101e31,#15263c);border:1px solid rgba(255,255,255,.1);border-radius:20px;padding:20px;min-height:205px;display:flex;align-items:center;gap:18px}
+.tvPhoto,.tvAvatar{width:125px;height:125px;border-radius:50%;object-fit:cover;flex:none;border:3px solid rgba(255,255,255,.12);background:#213651}.tvAvatar{display:grid;place-items:center;font-size:32px;font-weight:900}
+.tvOffice{font-size:11px;color:#21d07a;font-weight:900;letter-spacing:1px}.tvName{font-size:29px;font-weight:900;margin:6px 0}.tvParty{font-size:14px;color:#91a3ba}.tvNumber{position:absolute;right:18px;top:18px;font-size:28px;font-weight:900;background:rgba(255,255,255,.07);padding:8px 12px;border-radius:12px}.tvStatus{font-size:11px;color:#91a3ba;margin-top:7px}.tvEmpty{text-align:center;color:#91a3ba;padding:80px 20px;font-size:18px}
+@media(min-width:1250px){.tvGrid{grid-template-columns:repeat(3,minmax(0,1fr))}.tvCard{min-height:230px}}
+@media(max-width:700px){.tvGrid{grid-template-columns:1fr}.tvHead{align-items:flex-start}.tvTitle strong{font-size:18px}.tvActions{flex-wrap:wrap;justify-content:flex-end}.tvCard{min-height:150px;padding:14px}.tvPhoto,.tvAvatar{width:85px;height:85px}.tvName{font-size:20px}.tvNumber{font-size:20px}.tvBody{padding:12px}}
 </style>
 </head>
 <body>
@@ -34,6 +45,7 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 <label class="wide">Pesquisar<input id="search" placeholder="Nome, número ou partido"></label>
 <button class="primary" id="refresh">↻ Atualizar</button>
 <button class="secondary" id="theme">☾ Tema</button>
+<button id="tvBtn">📺 Modo TV</button>
 </section>
 <section class="status card"><h3><span class="dot"></span><span id="state">Preparando consulta…</span></h3><p id="detail">Aguardando.</p></section>
 <section class="stats">
@@ -47,95 +59,64 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 <div class="pager"><button id="prev">← Anterior</button><span id="pageInfo">Página 1</span><button id="next">Próxima →</button></div>
 <section class="info card"><p><b>Fonte:</b> DivulgaCandContas / Tribunal Superior Eleitoral. O painel não classifica nem recomenda candidaturas. Presidente e Vice usam abrangência Brasil; os demais cargos são filtrados pela unidade da Federação. Fotos são carregadas sob demanda para reduzir o consumo de dados no celular.</p></section>
 </main>
+<div class="tvOverlay" id="tvOverlay">
+ <div class="tvHead">
+  <div class="tvTitle"><small>ACOMPANHAMENTO ELEITORAL</small><strong>📺 ELEIÇÕES 2026 • MODO TV</strong></div>
+  <div class="tvActions"><button class="live" id="tvReload">↻ Atualizar</button><button id="tvFull">⛶ Tela cheia</button><button id="tvClose">✕ Sair</button></div>
+ </div>
+ <div class="tvBody">
+  <div class="tvInfo"><span id="tvCount">0 selecionados</span><span id="tvClock">--</span></div>
+  <div class="tvGrid" id="tvGrid"></div>
+ </div>
+</div>
 <footer>PAINEL ELEIÇÕES 2026 • PROJETO INDEPENDENTE • PAULO CARVALHO DEV</footer>
 <script>
-const API="https://divulgacandcontas.tse.jus.br/divulga/rest/v1/candidatura";
-const ELEICAO="20322002026";
 const UFS=["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA","PB","PR","PE","PI","RJ","RN","RS","RO","RR","SC","SP","SE","TO"];
-const OFFICES=[
- ["1","Presidente"],["2","Vice-Presidente"],["3","Governador"],["4","Vice-Governador"],
- ["5","Senador"],["9","1º Suplente de Senador"],["10","2º Suplente de Senador"],
- ["6","Deputado Federal"],["7","Deputado Estadual"],["8","Deputado Distrital"]
-];
-const $=id=>document.getElementById(id), uf=$("uf"),cargo=$("cargo"),party=$("party"),search=$("search");
-UFS.forEach(x=>uf.add(new Option(x,x)));OFFICES.forEach(x=>cargo.add(new Option(x[1],x[0])));
-uf.value=localStorage.getItem("eleicoesUF")||"MA";cargo.value=localStorage.getItem("eleicoesCargo")||"3";
-let all=[],filtered=[],favorites=JSON.parse(localStorage.getItem("eleicoesFav")||"[]"),page=1,perPage=30,token=0;
-
-function clock(){const d=new Date();$("clock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}clock();setInterval(clock,1000);
+const OFFICES=[["1","Presidente"],["2","Vice-Presidente"],["3","Governador"],["4","Vice-Governador"],["5","Senador"],["9","1º Suplente de Senador"],["10","2º Suplente de Senador"],["6","Deputado Federal"],["7","Deputado Estadual"],["8","Deputado Distrital"]];
+const $=id=>document.getElementById(id),uf=$("uf"),cargo=$("cargo"),party=$("party"),search=$("search");
+UFS.forEach(x=>uf.add(new Option(x,x))); OFFICES.forEach(x=>cargo.add(new Option(x[1],x[0])));
+uf.value=localStorage.getItem("eleicoesUF")||"MA"; cargo.value=localStorage.getItem("eleicoesCargo")||"3";
+let all=[],filtered=[],favorites=JSON.parse(localStorage.getItem("eleicoesFav")||"[]"),page=1,perPage=30;
+let tvSaved=JSON.parse(localStorage.getItem("eleicoesTV")||"[]");
+function clock(){let d=new Date();$("clock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}clock();setInterval(clock,1000);
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 function initials(n=""){return n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()}
-function toggleFav(id){id=String(id);favorites.includes(id)?favorites=favorites.filter(x=>x!==id):favorites.push(id);localStorage.setItem("eleicoesFav",JSON.stringify(favorites));render()}window.toggleFav=toggleFav;
-function isNational(){return ["1","2"].includes(cargo.value)}
-function currentScope(){return isNational()?"BR":uf.value}
-
-function populateParties(){
- const current=party.value; const ps=[...new Set(all.map(x=>x.partido).filter(Boolean))].sort();
- party.innerHTML='<option value="">Todos</option>'+ps.map(p=>`<option value="${esc(p)}">${esc(p)}</option>`).join("");
- if(ps.includes(current))party.value=current;
-}
-function apply(){
- const q=search.value.trim().toLowerCase(),p=party.value;
- filtered=all.filter(c=>(!p||c.partido===p)&&(!q||[c.nome,c.numero,c.partido,c.situacao,c.cargo].join(" ").toLowerCase().includes(q)));
- page=1;render();
-}
+function toggleFav(id){
+ id=String(id); let c=all.find(x=>String(x.id)===id);
+ if(favorites.includes(id)){favorites=favorites.filter(x=>x!==id);tvSaved=tvSaved.filter(x=>String(x.id)!==id)}
+ else{favorites.push(id);if(c&&!tvSaved.some(x=>String(x.id)===id))tvSaved.push({...c,scope:scope()})}
+ localStorage.setItem("eleicoesFav",JSON.stringify(favorites));localStorage.setItem("eleicoesTV",JSON.stringify(tvSaved));render();renderTV()
+} window.toggleFav=toggleFav;
+function national(){return ["1","2"].includes(cargo.value)} function scope(){return national()?"BR":uf.value}
+function populateParties(){let cur=party.value,ps=[...new Set(all.map(x=>x.partido).filter(Boolean))].sort();party.innerHTML='<option value="">Todos</option>'+ps.map(p=>`<option>${esc(p)}</option>`).join("");if(ps.includes(cur))party.value=cur}
+function apply(){let q=search.value.trim().toLowerCase(),p=party.value;filtered=all.filter(c=>(!p||c.partido===p)&&(!q||[c.nome,c.numero,c.partido,c.situacao,c.cargo].join(" ").toLowerCase().includes(q)));page=1;render()}
 function render(){
- const pages=Math.max(1,Math.ceil(filtered.length/perPage));if(page>pages)page=pages;
- const start=(page-1)*perPage,list=filtered.slice(start,start+perPage);
- $("total").textContent=filtered.length.toLocaleString("pt-BR");$("shown").textContent=list.length;$("scope").textContent=currentScope();$("pageStat").textContent=page;
- $("pageInfo").textContent=`Página ${page} de ${pages}`;$("prev").disabled=page<=1;$("next").disabled=page>=pages;
- const box=$("cards");
- if(!list.length){box.innerHTML='<div class="empty card">Nenhum candidato encontrado com estes filtros.</div>';return}
- box.innerHTML=list.map(c=>`<article class="candidate card">
- <button class="fav ${favorites.includes(String(c.id))?"on":""}" onclick="toggleFav('${c.id}')">★</button>
- <div class="ctop">${c.foto?`<img class="photo" loading="lazy" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}" onerror="this.style.display='none'">`:`<div class="avatar">${initials(c.nome)}</div>`}
- <div class="ci"><div class="office">${esc(c.cargo).toUpperCase()}</div><div class="name">${esc(c.nome)}</div><div class="party">${esc(c.partido)}</div><div class="situation">${esc(c.situacao||"Situação não informada")}</div></div><div class="number">${esc(c.numero)}</div></div>
- <div class="meta"><span class="tag">${esc(currentScope())}</span>${c.federacao?`<span class="tag">${esc(c.federacao)}</span>`:""}<span class="tag">TSE</span></div></article>`).join("");
- hydratePhotos(list);
-}
-async function hydratePhotos(list){
- const my=token;
- for(let i=0;i<list.length;i+=6){
-   if(my!==token)return;
-   const batch=list.slice(i,i+6).filter(c=>!c.foto&&!c.photoTried);
-   await Promise.all(batch.map(async c=>{
-     c.photoTried=true;
-     try{
-       const r=await fetch(`${API}/buscar/2026/${currentScope()}/${ELEICAO}/candidato/${c.id}`,{cache:"force-cache"});
-       if(!r.ok)return;const d=await r.json();
-       c.foto=d.fotoUrl||d.urlFoto||d.foto||d.candidato?.fotoUrl||d.candidato?.foto||null;
-       c.situacao=d.descricaoSituacao||d.situacaoCandidato||c.situacao;
-     }catch{}
-   }));
-   if(my===token)renderWithoutHydrate();
- }
-}
-function renderWithoutHydrate(){
- const pages=Math.max(1,Math.ceil(filtered.length/perPage)),start=(page-1)*perPage,list=filtered.slice(start,start+perPage),box=$("cards");
- if(!list.length)return;
- box.innerHTML=list.map(c=>`<article class="candidate card">
- <button class="fav ${favorites.includes(String(c.id))?"on":""}" onclick="toggleFav('${c.id}')">★</button>
- <div class="ctop">${c.foto?`<img class="photo" loading="lazy" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}" onerror="this.style.display='none'">`:`<div class="avatar">${initials(c.nome)}</div>`}
- <div class="ci"><div class="office">${esc(c.cargo).toUpperCase()}</div><div class="name">${esc(c.nome)}</div><div class="party">${esc(c.partido)}</div><div class="situation">${esc(c.situacao||"Situação não informada")}</div></div><div class="number">${esc(c.numero)}</div></div>
- <div class="meta"><span class="tag">${esc(currentScope())}</span>${c.federacao?`<span class="tag">${esc(c.federacao)}</span>`:""}<span class="tag">TSE</span></div></article>`).join("");
+ let pages=Math.max(1,Math.ceil(filtered.length/perPage));if(page>pages)page=pages;let list=filtered.slice((page-1)*perPage,page*perPage);
+ $("total").textContent=filtered.length.toLocaleString("pt-BR");$("shown").textContent=list.length;$("scope").textContent=scope();$("pageStat").textContent=page;$("pageInfo").textContent=`Página ${page} de ${pages}`;$("prev").disabled=page<=1;$("next").disabled=page>=pages;
+ if(!list.length){$("cards").innerHTML='<div class="empty card">Nenhum candidato encontrado com estes filtros.</div>';return}
+ $("cards").innerHTML=list.map(c=>`<article class="candidate card"><button class="fav ${favorites.includes(String(c.id))?"on":""}" onclick="toggleFav('${c.id}')">★</button><div class="ctop">${c.foto?`<img class="photo" loading="lazy" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}" onerror="this.style.display='none'">`:`<div class="avatar">${initials(c.nome)}</div>`}<div class="ci"><div class="office">${esc(c.cargo).toUpperCase()}</div><div class="name">${esc(c.nome)}</div><div class="party">${esc(c.partido)}</div><div class="situation">${esc(c.situacao||"Situação não informada")}</div></div><div class="number">${esc(c.numero)}</div></div><div class="meta"><span class="tag">${esc(scope())}</span>${c.federacao?`<span class="tag">${esc(c.federacao)}</span>`:""}<span class="tag">TSE</span></div></article>`).join("")
 }
 async function load(){
- const my=++token,scope=currentScope(),office=cargo.options[cargo.selectedIndex].text;
- uf.disabled=isNational();
- if(cargo.value==="8"&&uf.value!=="DF"){all=[];filtered=[];$("state").textContent="Deputado Distrital é cargo do Distrito Federal";$("detail").textContent="Selecione DF para consultar esse cargo.";populateParties();render();return}
- $("state").textContent="Consultando candidatos oficiais…";$("detail").textContent=`${office} • ${scope}`;$("cards").innerHTML='<div class="empty card">Buscando dados no TSE…</div>';
- try{
-  const r=await fetch(`${API}/listar/2026/${scope}/${ELEICAO}/${cargo.value}/candidatos`,{cache:"no-store"});
-  if(!r.ok)throw new Error("HTTP "+r.status);const d=await r.json();if(my!==token)return;
-  all=(d.candidatos||[]).map(x=>({id:x.id,nome:x.nomeUrna||x.nomeCompleto||"Sem nome",numero:String(x.numero??"—"),partido:x.partido?.sigla||"",federacao:x.partido?.nome||"",situacao:x.descricaoSituacao||x.descricaoTotalizacao||"",cargo:x.cargo?.nome||office,foto:x.fotoUrl||null,photoTried:false}));
-  populateParties();filtered=[...all];page=1;render();
-  $("state").textContent="Candidatos oficiais carregados";$("detail").textContent=`${all.length.toLocaleString("pt-BR")} registros recebidos do DivulgaCandContas/TSE • ${office} • ${scope}.`;
-  $("updated").textContent="Atualizado às "+new Date().toLocaleTimeString("pt-BR");
- }catch(e){all=[];filtered=[];render();$("state").textContent="Não foi possível consultar o TSE";$("detail").textContent=`${e.message}. Tente atualizar novamente.`;$("updated").textContent="Falha às "+new Date().toLocaleTimeString("pt-BR")}
+ uf.disabled=national();
+ if(cargo.value==="8"&&uf.value!=="DF"){all=[];filtered=[];$("state").textContent="Deputado Distrital é cargo do DF";$("detail").textContent="Selecione DF.";render();return}
+ let s=scope(),file=`data/${s}_${cargo.value}.json?v=${Date.now()}`;$("state").textContent="Carregando base oficial…";$("detail").textContent=`${cargo.options[cargo.selectedIndex].text} • ${s}`;
+ try{let r=await fetch(file,{cache:"no-store"});if(!r.ok)throw new Error("Base ainda não gerada ("+r.status+")");let d=await r.json();all=d.candidatos||[];populateParties();filtered=[...all];page=1;render();$("state").textContent="Candidatos oficiais carregados";$("detail").textContent=`${all.length.toLocaleString("pt-BR")} registros • fonte TSE • base atualizada ${d.atualizado||""}`;$("updated").textContent="Carregado às "+new Date().toLocaleTimeString("pt-BR")}
+ catch(e){all=[];filtered=[];render();$("state").textContent="Base local ainda indisponível";$("detail").textContent=e.message+". No GitHub, execute a Action “Atualizar candidatos TSE” uma vez."}
 }
-uf.onchange=()=>{localStorage.setItem("eleicoesUF",uf.value);load()};cargo.onchange=()=>{localStorage.setItem("eleicoesCargo",cargo.value);load()};party.onchange=apply;search.oninput=apply;
-$("refresh").onclick=load;$("prev").onclick=()=>{if(page>1){page--;render();scrollTo({top:document.querySelector(".section").offsetTop,behavior:"smooth"})}};$("next").onclick=()=>{if(page*perPage<filtered.length){page++;render();scrollTo({top:document.querySelector(".section").offsetTop,behavior:"smooth"})}};
+
+function renderTV(){
+ const g=$("tvGrid");$("tvCount").textContent=`${tvSaved.length} candidato${tvSaved.length===1?"":"s"} selecionado${tvSaved.length===1?"":"s"}`;
+ if(!tvSaved.length){g.innerHTML='<div class="tvEmpty">Nenhum candidato selecionado.<br>Saia do Modo TV e toque na ⭐ dos candidatos que deseja acompanhar.</div>';return}
+ g.innerHTML=tvSaved.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div></div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
+}
+function openTV(){renderTV();$("tvOverlay").classList.add("open");document.body.style.overflow="hidden"}
+function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow=""}
+function tvClock(){let d=new Date();$("tvClock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}tvClock();setInterval(tvClock,1000);
+$("tvBtn").onclick=openTV;$("tvClose").onclick=closeTV;$("tvReload").onclick=()=>{load();renderTV()};
+$("tvFull").onclick=async()=>{try{if(!document.fullscreenElement)await $("tvOverlay").requestFullscreen();else await document.exitFullscreen()}catch(e){}};
+uf.onchange=()=>{localStorage.setItem("eleicoesUF",uf.value);load()};cargo.onchange=()=>{localStorage.setItem("eleicoesCargo",cargo.value);load()};party.onchange=apply;search.oninput=apply;$("refresh").onclick=load;
+$("prev").onclick=()=>{if(page>1){page--;render()}};$("next").onclick=()=>{if(page*perPage<filtered.length){page++;render()}};
 $("theme").onclick=()=>{document.body.classList.toggle("light");localStorage.setItem("eleicoesTema",document.body.classList.contains("light")?"light":"dark")};if(localStorage.getItem("eleicoesTema")==="light")document.body.classList.add("light");
-load();setInterval(load,15*60*1000);
+load();
 </script>
 </body></html>
