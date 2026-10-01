@@ -32,6 +32,11 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 .tvLiveBar{margin-bottom:16px;padding:13px 16px;border:1px solid rgba(33,208,122,.25);background:rgba(33,208,122,.07);border-radius:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px}
 .tvLiveBar b{color:#21d07a}.liveDot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#21d07a;margin-right:6px}.liveDot.off{background:#f0b429}.tvMeta{opacity:.8}.tvCache{font-size:10px;color:#91a3ba;margin-top:5px}.tvVotes{font-size:25px;font-weight:900;margin-top:10px}.tvPct{font-size:15px;color:#21d07a;font-weight:800}.tvDelta{font-size:11px;color:#91a3ba;margin-top:4px}.tvApuracao{height:5px;background:rgba(255,255,255,.08);border-radius:9px;margin-top:9px;overflow:hidden}.tvApuracao i{display:block;height:100%;background:#21d07a;width:0}.tvWaiting{font-size:12px;color:#91a3ba;margin-top:10px}
 @keyframes votePulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}.votePulse{animation:votePulse .65s ease}
+
+.tvTools{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.tvTools button{background:#17263b;color:#fff}.tvTools button.on{background:#21d07a;color:#032113}
+.tvHistory{margin-top:9px}.tvHistory summary{cursor:pointer;font-size:10px;color:#91a3ba}.tvHistoryList{font-size:10px;color:#91a3ba;line-height:1.6;margin-top:5px;max-height:80px;overflow:auto}
+.tvNet{font-weight:800}.tvNet.online{color:#21d07a}.tvNet.offline{color:#ff6670}.voteChanged{animation:votePulse .8s ease}
+@media(max-width:700px){.tvTools button{flex:1 1 45%;padding:9px;font-size:11px}}
 </style>
 </head>
 <body>
@@ -69,10 +74,11 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 <div class="tvOverlay" id="tvOverlay">
  <div class="tvHead">
   <div class="tvTitle"><small>ACOMPANHAMENTO ELEITORAL</small><strong>📺 ELEIÇÕES 2026 • MODO TV</strong></div>
-  <div class="tvActions"><button class="live" id="tvReload">↻ Atualizar</button><button id="tvFull">⛶ Tela cheia</button><button id="tvClose">✕ Sair</button></div>
+  <div class="tvActions"><button class="live" id="tvReload">↻ Atualizar</button><button id="tvFull">⛶ Tela cheia</button><button id="tvLock">🔓 Travar</button><button id="tvWake">☀ Tela ativa</button><button id="tvClose">✕ Sair</button></div>
  </div>
  <div class="tvBody">
   <div class="tvLiveBar"><span><b>● APURAÇÃO OFICIAL TSE</b> • atualização automática a cada 30 s</span><span><span id="tvLiveStatus">Aguardando abertura da apuração</span> • <span class="tvMeta" id="tvNext">próxima consulta em 30s</span></span></div>
+  <div class="tvTools"><button id="tvClearHistory">🧹 Limpar histórico</button><span style="margin-left:auto;font-size:11px;color:#91a3ba;align-self:center">Conexão: <span id="tvNet" class="tvNet">--</span></span></div>
   <div class="tvInfo"><span id="tvCount">0 selecionados</span><span id="tvClock">--</span></div>
   <div class="tvGrid" id="tvGrid"></div>
  </div>
@@ -90,6 +96,7 @@ function clock(){let d=new Date();$("clock").textContent=d.toLocaleDateString("p
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 function initials(n=""){return n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()}
 function toggleFav(id){
+ if(tvLocked){alert("Modo TV está travado. Destrave antes de alterar os favoritos.");return}
  id=String(id); let c=all.find(x=>String(x.id)===id);
  if(favorites.includes(id)){favorites=favorites.filter(x=>x!==id);tvSaved=tvSaved.filter(x=>String(x.id)!==id)}
  else{favorites.push(id);if(c&&!tvSaved.some(x=>String(x.id)===id))tvSaved.push({...c,scope:scope(),cargoCodigo:cargo.value})}
@@ -118,6 +125,26 @@ const RESULT_BASE="https://resultados.tse.jus.br/oficial/ele2026";
 const LIVE_INTERVAL=30000,LIVE_CACHE_KEY="eleicoesLiveCache",LIVE_HISTORY_KEY="eleicoesLiveHistory";
 let liveVotes=JSON.parse(localStorage.getItem(LIVE_CACHE_KEY)||"{}"),livePrevious={},liveTimer=null,liveTick=null,liveBusy=false,nextLiveAt=0,liveErrors=0;
 let liveHistory=JSON.parse(localStorage.getItem(LIVE_HISTORY_KEY)||"{}");
+let tvLocked=localStorage.getItem("eleicoesTVLocked")==="1",wakeLock=null;
+function updateNet(){const e=$("tvNet");if(!e)return;e.textContent=navigator.onLine?"ONLINE":"OFFLINE";e.className="tvNet "+(navigator.onLine?"online":"offline")}
+window.addEventListener("online",updateNet);window.addEventListener("offline",updateNet);
+async function toggleWake(){
+ try{
+  if(wakeLock){await wakeLock.release();wakeLock=null}
+  else if("wakeLock" in navigator){wakeLock=await navigator.wakeLock.request("screen");wakeLock.addEventListener("release",()=>{wakeLock=null;updateTVControls()})}
+  else alert("Este navegador não oferece suporte para manter a tela ativa.");
+ }catch(e){alert("Não foi possível manter a tela ativa neste dispositivo.")}
+ updateTVControls();
+}
+function updateTVControls(){
+ const l=$("tvLock"),w=$("tvWake");if(l){l.textContent=tvLocked?"🔒 Travado":"🔓 Travar";l.classList.toggle("on",tvLocked)}
+ if(w){w.textContent=wakeLock?"☀ Tela ativa":"☀ Tela ativa";w.classList.toggle("on",!!wakeLock)}
+}
+function toggleTVLock(){tvLocked=!tvLocked;localStorage.setItem("eleicoesTVLocked",tvLocked?"1":"0");updateTVControls()}
+function historyBlock(c){
+ const arr=liveHistory[String(c.id)]||[];if(!arr.length)return "";
+ return `<details class="tvHistory"><summary>Histórico (${arr.length})</summary><div class="tvHistoryList">${arr.slice(-8).reverse().map(x=>`${new Date(x.t).toLocaleTimeString("pt-BR")} • ${Number(x.votes||0).toLocaleString("pt-BR")} votos • ${esc(x.pct||"0")}%`).join("<br>")}</div></details>`;
+}
 function cargoCode(c){
  if(c.cargoCodigo)return String(c.cargoCodigo);
  const n=norm(c.cargo||"");
@@ -183,15 +210,15 @@ function liveBlock(c){
  const v=liveVotes[String(c.id)]; if(!v)return '<div class="tvWaiting">Votos: aguardando início da divulgação oficial</div>';
  const prev=livePrevious[String(c.id)],delta=prev==null?0:v.votes-prev;
  const pontos=(liveHistory[String(c.id)]||[]).length,idade=v.recebido?Math.max(0,Math.floor((Date.now()-v.recebido)/1000)):null;
- return `<div class="tvVotes">${v.votes.toLocaleString("pt-BR")} votos</div><div class="tvPct">${esc(v.pct)}%</div>${delta>0?`<div class="tvDelta">+${delta.toLocaleString("pt-BR")} desde a última atualização</div>`:""}<div class="tvApuracao"><i style="width:${Math.max(0,Math.min(100,v.apuracao||0))}%"></i></div><div class="tvCache">${idade!==null?`último dado recebido há ${idade<60?idade+"s":Math.floor(idade/60)+"min"}`:""}${pontos>1?` • ${pontos} pontos no histórico`:""}</div>`;
+ return `<div class="tvVotes ${delta>0?"voteChanged":""}">${v.votes.toLocaleString("pt-BR")} votos</div><div class="tvPct">${esc(v.pct)}%</div>${delta>0?`<div class="tvDelta">+${delta.toLocaleString("pt-BR")} desde a última atualização</div>`:""}<div class="tvApuracao"><i style="width:${Math.max(0,Math.min(100,v.apuracao||0))}%"></i></div>${historyBlock(c)}<div class="tvCache">${idade!==null?`último dado recebido há ${idade<60?idade+"s":Math.floor(idade/60)+"min"}`:""}${pontos>1?` • ${pontos} pontos no histórico`:""}</div>`;
 }
 function renderTV(startPolling=true){
  const g=$("tvGrid");$("tvCount").textContent=`${tvSaved.length} candidato${tvSaved.length===1?"":"s"} selecionado${tvSaved.length===1?"":"s"}`;
  if(!tvSaved.length){g.innerHTML='<div class="tvEmpty">Nenhum candidato selecionado.<br>Saia do Modo TV e toque na ⭐ dos candidatos que deseja acompanhar.</div>';return}
  g.innerHTML=tvSaved.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}</div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
 }
-function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();startLive()}
-function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow="";stopLive()}
+function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();startLive()}
+async function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow="";stopLive();if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
 function tvClock(){let d=new Date();$("tvClock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}tvClock();setInterval(tvClock,1000);
 $("tvBtn").onclick=openTV;$("tvClose").onclick=closeTV;$("tvReload").onclick=()=>{load();startLive()};
 $("tvFull").onclick=async()=>{try{if(!document.fullscreenElement)await $("tvOverlay").requestFullscreen();else await document.exitFullscreen()}catch(e){}};
@@ -218,6 +245,11 @@ $("exportFav").onclick=exportFavorites;
 $("importFav").onclick=()=>$("importFavFile").click();
 $("importFavFile").onchange=e=>{const file=e.target.files?.[0];if(file)importFavorites(file);e.target.value=""};
 
+
+$("tvLock").onclick=toggleTVLock;
+$("tvWake").onclick=toggleWake;
+$("tvClearHistory").onclick=()=>{if(confirm("Limpar o histórico local da apuração?")){liveHistory={};localStorage.removeItem(LIVE_HISTORY_KEY);renderTV(false)}};
+document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&$("tvOverlay").classList.contains("open")&&$("tvWake").classList.contains("on")&&!wakeLock&&"wakeLock" in navigator){try{wakeLock=await navigator.wakeLock.request("screen")}catch(e){}}});
 load();
 </script>
 </body></html>
