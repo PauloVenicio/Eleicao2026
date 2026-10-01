@@ -89,7 +89,7 @@ function toggleFav(id){
 } window.toggleFav=toggleFav;
 function national(){return ["1","2"].includes(cargo.value)} function scope(){return national()?"BR":uf.value}
 function populateParties(){let cur=party.value,ps=[...new Set(all.map(x=>x.partido).filter(Boolean))].sort();party.innerHTML='<option value="">Todos</option>'+ps.map(p=>`<option>${esc(p)}</option>`).join("");if(ps.includes(cur))party.value=cur}
-function apply(){let q=search.value.trim().toLowerCase(),p=party.value;filtered=all.filter(c=>(!p||c.partido===p)&&(!q||[c.nome,c.numero,c.partido,c.situacao,c.cargo].join(" ").toLowerCase().includes(q)));page=1;render()}
+function norm(v=""){return String(v).normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").toLowerCase().trim()}\nfunction apply(){let q=norm(search.value),p=party.value;filtered=all.filter(c=>(!p||c.partido===p)&&(!q||norm([c.nome,c.numero,c.partido,c.situacao,c.cargo].join(" ")).includes(q)));page=1;render();$("detail").textContent=q?`${filtered.length.toLocaleString("pt-BR")} resultado${filtered.length===1?"":"s"} para “${search.value.trim()}” • ${all.length.toLocaleString("pt-BR")} registros na base`: `${all.length.toLocaleString("pt-BR")} registros • fonte TSE`}
 function render(){
  let pages=Math.max(1,Math.ceil(filtered.length/perPage));if(page>pages)page=pages;let list=filtered.slice((page-1)*perPage,page*perPage);
  $("total").textContent=filtered.length.toLocaleString("pt-BR");$("shown").textContent=list.length;$("scope").textContent=scope();$("pageStat").textContent=page;$("pageInfo").textContent=`Página ${page} de ${pages}`;$("prev").disabled=page<=1;$("next").disabled=page>=pages;
@@ -114,7 +114,7 @@ function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.o
 function tvClock(){let d=new Date();$("tvClock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}tvClock();setInterval(tvClock,1000);
 $("tvBtn").onclick=openTV;$("tvClose").onclick=closeTV;$("tvReload").onclick=()=>{load();renderTV()};
 $("tvFull").onclick=async()=>{try{if(!document.fullscreenElement)await $("tvOverlay").requestFullscreen();else await document.exitFullscreen()}catch(e){}};
-uf.onchange=()=>{localStorage.setItem("eleicoesUF",uf.value);load()};cargo.onchange=()=>{localStorage.setItem("eleicoesCargo",cargo.value);load()};party.onchange=apply;search.oninput=apply;$("refresh").onclick=load;
+uf.onchange=()=>{localStorage.setItem("eleicoesUF",uf.value);load()};cargo.onchange=()=>{localStorage.setItem("eleicoesCargo",cargo.value);load()};party.onchange=apply;search.oninput=apply;search.onkeyup=apply;search.onchange=apply;$("refresh").onclick=load;
 $("prev").onclick=()=>{if(page>1){page--;render()}};$("next").onclick=()=>{if(page*perPage<filtered.length){page++;render()}};
 $("theme").onclick=()=>{document.body.classList.toggle("light");localStorage.setItem("eleicoesTema",document.body.classList.contains("light")?"light":"dark")};if(localStorage.getItem("eleicoesTema")==="light")document.body.classList.add("light");
 load();
