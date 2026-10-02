@@ -182,7 +182,7 @@ async function updateExteriorResults(){
   ]);
   if(!rr.ok)throw new Error("Resultado HTTP "+rr.status);
   const d=await rr.json(),base=pr.ok?await pr.json():[],cand=flattenCandidates(d),pct=d.s?.pstn??d.s?.pst??null;
-  const presidents=Array.isArray(base)?base:(base.candidatos||base.data||[]);
+  const presidents=(Array.isArray(base)?base:(base.candidatos||base.data||[])).filter(c=>["13","22"].includes(String(c.numero)));
   const rows=[];
   for(const c of presidents){
    const hit=cand.find(x=>String(x.n)===String(c.numero));if(!hit)continue;
