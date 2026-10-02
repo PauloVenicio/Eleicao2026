@@ -31,6 +31,8 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 
 .tvLiveBar{margin-bottom:16px;padding:13px 16px;border:1px solid rgba(33,208,122,.25);background:rgba(33,208,122,.07);border-radius:14px;display:flex;justify-content:space-between;gap:12px;flex-wrap:wrap;font-size:12px}
 .tvLiveBar b{color:#21d07a}.liveDot{display:inline-block;width:8px;height:8px;border-radius:50%;background:#21d07a;margin-right:6px}.liveDot.off{background:#f0b429}.tvMeta{opacity:.8}.tvCache{font-size:10px;color:#91a3ba;margin-top:5px}.tvVotes{font-size:25px;font-weight:900;margin-top:10px}.tvPct{font-size:15px;color:#21d07a;font-weight:800}.tvDelta{font-size:11px;color:#91a3ba;margin-top:4px}.tvApuracao{height:5px;background:rgba(255,255,255,.08);border-radius:9px;margin-top:9px;overflow:hidden}.tvApuracao i{display:block;height:100%;background:#21d07a;width:0}.tvWaiting{font-size:12px;color:#91a3ba;margin-top:10px}
+.tvExterior{margin:0 0 18px;padding:16px 18px;border:1px solid rgba(77,141,255,.35);background:linear-gradient(135deg,rgba(77,141,255,.14),rgba(33,208,122,.06));border-radius:16px;display:none}
+.tvExterior.show{display:block}.tvExteriorHead{display:flex;justify-content:space-between;gap:12px;align-items:center;flex-wrap:wrap}.tvExteriorTitle{font-weight:900;font-size:16px}.tvExteriorTitle span{color:#4d8dff}.tvExteriorMeta{font-size:10px;color:#91a3ba}.tvExteriorGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(180px,1fr));gap:8px;margin-top:12px}.tvExteriorItem{padding:10px 12px;background:rgba(0,0,0,.18);border-radius:11px}.tvExteriorItem b{display:block;font-size:13px}.tvExteriorItem small{color:#91a3ba;font-size:10px}.tvExteriorStatus{font-size:11px;color:#91a3ba;margin-top:10px}
 @keyframes votePulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}.votePulse{animation:votePulse .65s ease}
 
 .tvTools{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.tvTools button{background:#17263b;color:#fff}.tvTools button.on{background:#21d07a;color:#032113}
@@ -80,6 +82,11 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
   <div class="tvLiveBar"><span><b>● APURAÇÃO OFICIAL TSE</b> • atualização automática a cada 30 s</span><span><span id="tvLiveStatus">Aguardando abertura da apuração</span> • <span class="tvMeta" id="tvNext">próxima consulta em 30s</span></span></div>
   <div class="tvTools"><button id="tvClearHistory">🧹 Limpar histórico</button><span style="margin-left:auto;font-size:11px;color:#91a3ba;align-self:center">Conexão: <span id="tvNet" class="tvNet">--</span></span></div>
   <div class="tvInfo"><span id="tvCount">0 selecionados</span><span id="tvClock">--</span></div>
+  <section class="tvExterior" id="tvExterior">
+   <div class="tvExteriorHead"><div class="tvExteriorTitle">🌎 <span>VOTOS DO EXTERIOR</span> • PRESIDENTE</div><div class="tvExteriorMeta">Zona Eleitoral do Exterior • ZZ</div></div>
+   <div class="tvExteriorGrid" id="tvExteriorGrid"></div>
+   <div class="tvExteriorStatus" id="tvExteriorStatus">Aguardando dados oficiais do TSE.</div>
+  </section>
   <div class="tvGrid" id="tvGrid"></div>
  </div>
 </div>
@@ -125,6 +132,7 @@ const RESULT_BASE="https://resultados.tse.jus.br/oficial/ele2026";
 const LIVE_INTERVAL=30000,LIVE_CACHE_KEY="eleicoesLiveCache",LIVE_HISTORY_KEY="eleicoesLiveHistory";
 let liveVotes=JSON.parse(localStorage.getItem(LIVE_CACHE_KEY)||"{}"),livePrevious={},liveTimer=null,liveTick=null,liveBusy=false,nextLiveAt=0,liveErrors=0;
 let liveHistory=JSON.parse(localStorage.getItem(LIVE_HISTORY_KEY)||"{}");
+let exteriorVotes={};
 let tvLocked=localStorage.getItem("eleicoesTVLocked")==="1",wakeLock=null;
 function updateNet(){const e=$("tvNet");if(!e)return;e.textContent=navigator.onLine?"ONLINE":"OFFLINE";e.className="tvNet "+(navigator.onLine?"online":"offline")}
 window.addEventListener("online",updateNet);window.addEventListener("offline",updateNet);
@@ -160,6 +168,30 @@ function resultUrl(sc,cc){
  const fed=cc==="1",ele=fed?"6257":"6259",arq=String(ele).padStart(6,"0"),abr=fed?"br":String(sc||"MA").toLowerCase();
  return `${RESULT_BASE}/${ele}/dados/${abr}/${abr}-c${String(cc).padStart(4,"0")}-e${arq}-u.json`;
 }
+function exteriorResultUrl(){
+ return `${RESULT_BASE}/6257/dados/zz/zz-c0001-e006257-u.json`;
+}
+async function updateExteriorResults(){
+ const presidents=tvSaved.filter(c=>cargoCode(c)==="1"),box=$("tvExterior"),grid=$("tvExteriorGrid"),st=$("tvExteriorStatus");
+ if(!box||!grid||!st)return;
+ if(!presidents.length){box.classList.remove("show");return}
+ box.classList.add("show");
+ try{
+  const r=await fetch(exteriorResultUrl(),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
+  const d=await r.json(),cand=flattenCandidates(d),pct=d.s?.pstn??d.s?.pst??null;
+  const rows=[];
+  for(const c of presidents){
+   const hit=cand.find(x=>String(x.n)===String(c.numero));if(!hit)continue;
+   rows.push({c,v:parseInt(hit.vap||"0",10)||0,p:hit.pvap||hit.pvapn||"0"});
+  }
+  exteriorVotes={};rows.forEach(x=>exteriorVotes[String(x.c.id)]=x);
+  grid.innerHTML=rows.length?rows.map(x=>`<div class="tvExteriorItem"><b>${esc(x.c.nome)}</b><small>${x.v.toLocaleString("pt-BR")} votos • ${esc(x.p)}%</small></div>`).join(""):'<div class="tvWaiting">Aguardando votos presidenciais do exterior.</div>';
+  st.textContent=`Dados oficiais TSE • Exterior${pct!==null?" • "+pct+"% das seções totalizadas":""}${d.dt||d.ht?" • "+[d.dt,d.ht].filter(Boolean).join(" "):""}`;
+ }catch(e){
+  grid.innerHTML='<div class="tvWaiting">Aguardando disponibilização do arquivo oficial do exterior.</div>';
+  st.textContent='🌎 Exterior • conexão automática com o TSE (ZZ)';
+ }
+}
 function flattenCandidates(d){
  const out=[];for(const cg of(d.carg||[]))for(const ag of(cg.agr||[]))for(const pa of(ag.par||[]))for(const ca of(pa.cand||[]))out.push(ca);return out;
 }
@@ -194,7 +226,7 @@ async function updateLiveResults(){
    } ok++;
   }catch(e){}
  }
- liveErrors=ok?0:liveErrors+1;saveLive();
+ await updateExteriorResults();liveErrors=ok?0:liveErrors+1;saveLive();
  if(status)status.innerHTML=ok?'<span class="liveDot"></span>'+(maxPct!==null?`${String(maxPct).replace(".",",")}% das seções totalizadas • ${latest||"TSE"}`:`Dados recebidos do TSE • ${latest}`):'<span class="liveDot off"></span>'+(Object.keys(liveVotes).length?"Fonte temporariamente indisponível • exibindo último dado salvo":"Aguardando disponibilização dos resultados pelo TSE");
  liveBusy=false;
  const delay=ok?LIVE_INTERVAL:Math.min(120000,LIVE_INTERVAL*Math.max(1,liveErrors));
@@ -218,7 +250,7 @@ function renderTV(startPolling=true){
  const tvOrder={"1":1,"3":2,"7":3,"6":4,"5":5}; const ordered=[...tvSaved].sort((a,b)=>(tvOrder[cargoCode(a)]||99)-(tvOrder[cargoCode(b)]||99));
  g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}</div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
 }
-function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();startLive()}
+function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();updateExteriorResults();startLive()}
 async function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow="";stopLive();if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
 function tvClock(){let d=new Date();$("tvClock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}tvClock();setInterval(tvClock,1000);
 $("tvBtn").onclick=openTV;$("tvClose").onclick=closeTV;$("tvReload").onclick=()=>{load();startLive()};
