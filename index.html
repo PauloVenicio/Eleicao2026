@@ -172,20 +172,25 @@ function exteriorResultUrl(){
  return `${RESULT_BASE}/6257/dados/zz/zz-c0001-e006257-u.json`;
 }
 async function updateExteriorResults(){
- const presidents=tvSaved.filter(c=>cargoCode(c)==="1"),box=$("tvExterior"),grid=$("tvExteriorGrid"),st=$("tvExteriorStatus");
+ const box=$("tvExterior"),grid=$("tvExteriorGrid"),st=$("tvExteriorStatus");
  if(!box||!grid||!st)return;
- if(!presidents.length){box.classList.remove("show");return}
  box.classList.add("show");
  try{
-  const r=await fetch(exteriorResultUrl(),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
-  const d=await r.json(),cand=flattenCandidates(d),pct=d.s?.pstn??d.s?.pst??null;
+  const [rr,pr]=await Promise.all([
+   fetch(exteriorResultUrl(),{cache:"no-store"}),
+   fetch("data/BR_1.json?v="+Date.now(),{cache:"no-store"})
+  ]);
+  if(!rr.ok)throw new Error("Resultado HTTP "+rr.status);
+  const d=await rr.json(),base=pr.ok?await pr.json():[],cand=flattenCandidates(d),pct=d.s?.pstn??d.s?.pst??null;
+  const presidents=Array.isArray(base)?base:(base.candidatos||base.data||[]);
   const rows=[];
   for(const c of presidents){
    const hit=cand.find(x=>String(x.n)===String(c.numero));if(!hit)continue;
    rows.push({c,v:parseInt(hit.vap||"0",10)||0,p:hit.pvap||hit.pvapn||"0"});
   }
+  rows.sort((a,b)=>Number(a.c.numero)-Number(b.c.numero));
   exteriorVotes={};rows.forEach(x=>exteriorVotes[String(x.c.id)]=x);
-  grid.innerHTML=rows.length?rows.map(x=>`<div class="tvExteriorItem"><b>${esc(x.c.nome)}</b><small>${x.v.toLocaleString("pt-BR")} votos • ${esc(x.p)}%</small></div>`).join(""):'<div class="tvWaiting">Aguardando votos presidenciais do exterior.</div>';
+  grid.innerHTML=rows.length?rows.map(x=>`<div class="tvExteriorItem"><b>${esc(x.c.nome)}</b><small>Nº ${esc(x.c.numero)} • ${x.v.toLocaleString("pt-BR")} votos • ${esc(x.p)}%</small></div>`).join(""):'<div class="tvWaiting">Aguardando votos presidenciais do exterior.</div>';
   st.textContent=`Dados oficiais TSE • Exterior${pct!==null?" • "+pct+"% das seções totalizadas":""}${d.dt||d.ht?" • "+[d.dt,d.ht].filter(Boolean).join(" "):""}`;
  }catch(e){
   grid.innerHTML='<div class="tvWaiting">Aguardando disponibilização do arquivo oficial do exterior.</div>';
