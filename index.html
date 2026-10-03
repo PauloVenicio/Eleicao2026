@@ -159,7 +159,7 @@ function addGlue(id){
 function removeGlue(k){delete voteGlue[k];localStorage.setItem("eleicoesCola2026",JSON.stringify(voteGlue));render();renderGlue()}
 function renderGlue(){
  const sc=uf.value||"MA";$("glueUF").textContent=sc;
- const defs=[["BR_1","Presidente"],[sc+"_6","Deputado Federal"],[sc+(sc==="DF"?"_8":"_7"),sc==="DF"?"Deputado Distrital":"Deputado Estadual"],[sc+"_5a","Senador • 1ª vaga"],[sc+"_5b","Senador • 2ª vaga"],[sc+"_3","Governador"]];
+ const defs=[[sc+"_6","Deputado Federal"],[sc+(sc==="DF"?"_8":"_7"),sc==="DF"?"Deputado Distrital":"Deputado Estadual"],[sc+"_5a","Senador • 1ª vaga"],[sc+"_5b","Senador • 2ª vaga"],[sc+"_3","Governador"],["BR_1","Presidente"]];
  $("glueList").innerHTML=defs.map(([k,label])=>{const c=voteGlue[k];return `<div class="glueSlot">${c?(c.foto?`<img class="gluePhoto" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="gluePhoto tvAvatar">${initials(c.nome)}</div>`):'<div class="gluePhoto tvAvatar">—</div>'}<div class="glueInfo"><div class="glueOffice">${esc(label)} • ${k==="BR_1"?"BR":esc(sc)}</div>${c?`<div class="glueName">${esc(c.nome)}</div><div class="glueNum">${esc(c.numero)}</div>`:'<div class="glueEmpty">Nenhum candidato escolhido</div>'}</div>${c?`<button class="glueRemove" onclick="removeGlue('${k}')">✕</button>`:""}</div>`}).join("");
 }
 function openGlue(){renderGlue();$("glueOverlay").classList.add("open");document.body.style.overflow="hidden"}
