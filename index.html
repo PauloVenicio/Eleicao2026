@@ -52,6 +52,7 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 @keyframes votePulse{0%{transform:scale(1)}50%{transform:scale(1.05)}100%{transform:scale(1)}}.votePulse{animation:votePulse .65s ease}
 
 .tvTools{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.tvTools button{background:#17263b;color:#fff}.tvTools button.on{background:#21d07a;color:#032113}
+.tvGroupStatus{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}.tvGroupChip{font-size:10px;font-weight:800;padding:5px 8px;border-radius:999px;background:#13243a;border:1px solid #294461;color:#b8c9dd}.tvGroupChip b{color:#fff}.diagPanel{display:none;margin:0 0 14px;padding:12px;border:1px solid #294461;border-radius:12px;background:#0c1828;font-size:12px}.diagPanel.open{display:block}.diagGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.diagItem{padding:8px;border-radius:8px;background:#13243a}.diagOk{color:#21d07a}.diagWarn{color:#ffd35a}.diagBad{color:#ff6670}@media(max-width:600px){.diagGrid{grid-template-columns:1fr}}
 .tvHistory{margin-top:9px}.tvHistory summary{cursor:pointer;font-size:10px;color:#91a3ba}.tvHistoryList{font-size:10px;color:#91a3ba;line-height:1.6;margin-top:5px;max-height:80px;overflow:auto}
 .tvNet{font-weight:800}.tvNet.online{color:#21d07a}.tvNet.offline{color:#ff6670}.voteChanged{animation:votePulse .8s ease}
 @media(max-width:700px){.tvTools button{flex:1 1 45%;padding:9px;font-size:11px}}
@@ -119,7 +120,9 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
  </div>
  <div class="tvBody">
   <div class="tvLiveBar"><span><b>● APURAÇÃO OFICIAL TSE</b> • atualização automática a cada 30 s</span><span><span id="tvLiveStatus">Aguardando abertura da apuração</span> • <span class="tvMeta" id="tvNext">próxima consulta em 30s</span></span></div>
-  <div class="tvTools"><button id="tvClearHistory">🧹 Limpar histórico</button><span style="margin-left:auto;font-size:11px;color:#91a3ba;align-self:center">Conexão: <span id="tvNet" class="tvNet">--</span></span></div>
+  <div class="tvTools"><button id="tvClearHistory">🧹 Limpar histórico</button><button id="tvDiag">🩺 Diagnóstico</button><span style="margin-left:auto;font-size:11px;color:#91a3ba;align-self:center">Conexão: <span id="tvNet" class="tvNet">--</span></span></div>
+  <div class="diagPanel" id="tvDiagPanel"></div>
+  <div class="tvGroupStatus" id="tvGroupStatus"></div>
   <div class="tvInfo"><span id="tvCount">0 selecionados</span><span id="tvClock">--</span></div>
   
   <div class="tvGrid" id="tvGrid"></div>
@@ -143,9 +146,14 @@ const OFFICES=[["1","Presidente"],["3","Governador"],["5","Senador"],["9","1º S
 const $=id=>document.getElementById(id),uf=$("uf"),cargo=$("cargo"),party=$("party"),search=$("search");
 UFS.forEach(x=>uf.add(new Option(x,x))); OFFICES.forEach(x=>cargo.add(new Option(x[1],x[0])));
 uf.value=localStorage.getItem("eleicoesUF")||"MA"; cargo.value=localStorage.getItem("eleicoesCargo")||"3";
-let all=[],filtered=[],favorites=JSON.parse(localStorage.getItem("eleicoesFav")||"[]"),page=1,perPage=30;
-let tvSaved=JSON.parse(localStorage.getItem("eleicoesTV")||"[]");
-let voteGlue=JSON.parse(localStorage.getItem("eleicoesCola2026")||"{}");
+function safeJSON(key,fallback){
+ try{const raw=localStorage.getItem(key);if(!raw)return fallback;const v=JSON.parse(raw);return v??fallback}
+ catch(e){try{localStorage.removeItem(key)}catch(_){}return fallback}
+}
+let all=[],filtered=[],favorites=safeJSON("eleicoesFav",[]),page=1,perPage=30;
+if(!Array.isArray(favorites))favorites=[];
+let tvSaved=safeJSON("eleicoesTV",[]);if(!Array.isArray(tvSaved))tvSaved=[];
+let voteGlue=safeJSON("eleicoesCola2026",{});if(!voteGlue||Array.isArray(voteGlue)||typeof voteGlue!=="object")voteGlue={};
 function clock(){let d=new Date();$("clock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}clock();setInterval(clock,1000);
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 function initials(n=""){return n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()}
@@ -218,12 +226,16 @@ async function load(){
 
 const RESULT_BASE="https://resultados.tse.jus.br/oficial/ele2026";
 const LIVE_INTERVAL=30000,LIVE_CACHE_KEY="eleicoesLiveCache",LIVE_HISTORY_KEY="eleicoesLiveHistory";
-let liveVotes=JSON.parse(localStorage.getItem(LIVE_CACHE_KEY)||"{}"),livePrevious={},liveTimer=null,liveTick=null,liveBusy=false,nextLiveAt=0,liveErrors=0;
-let liveHistory=JSON.parse(localStorage.getItem(LIVE_HISTORY_KEY)||"{}");
+let liveVotes=safeJSON(LIVE_CACHE_KEY,{}),livePrevious={},liveTimer=null,liveTick=null,liveBusy=false,nextLiveAt=0,liveErrors=0;
+if(!liveVotes||Array.isArray(liveVotes)||typeof liveVotes!=="object")liveVotes={};
+let liveHistory=safeJSON(LIVE_HISTORY_KEY,{});
+if(!liveHistory||Array.isArray(liveHistory)||typeof liveHistory!=="object")liveHistory={};
+let liveGroupStatus={},lastTSESuccess=0,lastTSEError="";
+for(const v of Object.values(liveVotes)){if(v&&v.recebido)lastTSESuccess=Math.max(lastTSESuccess,Number(v.recebido)||0)}
 let exteriorVotes={};
 let tvLocked=localStorage.getItem("eleicoesTVLocked")==="1",wakeLock=null;
 function updateNet(){const e=$("tvNet");if(!e)return;e.textContent=navigator.onLine?"ONLINE":"OFFLINE";e.className="tvNet "+(navigator.onLine?"online":"offline")}
-window.addEventListener("online",updateNet);window.addEventListener("offline",updateNet);
+window.addEventListener("online",()=>{updateNet();renderDiagnostics()});window.addEventListener("offline",()=>{updateNet();renderDiagnostics()});
 async function toggleWake(){
  try{
   if(wakeLock){await wakeLock.release();wakeLock=null}
@@ -392,6 +404,20 @@ function addHistory(key,v){
  const arr=liveHistory[key]||[];const last=arr[arr.length-1];
  if(!last||last.votes!==v.votes||last.pct!==v.pct){arr.push({t:Date.now(),votes:v.votes,pct:v.pct,apuracao:v.apuracao});liveHistory[key]=arr.slice(-240)}
 }
+function officeShort(cc){return ({"1":"Presidente","3":"Governador","5":"Senador","6":"Dep. Federal","7":"Dep. Estadual","8":"Dep. Distrital"})[String(cc)]||"Cargo "+cc}
+function renderGroupStatus(){
+ const el=$("tvGroupStatus");if(!el)return;
+ const vals=Object.values(liveGroupStatus);
+ el.innerHTML=vals.length?vals.map(x=>`<span class="tvGroupChip"><b>${esc(x.office)} ${esc(x.scope)}</b> • ${x.pct==null?"--":esc(String(x.pct).replace(".",","))+"%"}${x.time?" • "+esc(x.time):""}</span>`).join(""):"";
+}
+function renderDiagnostics(){
+ const p=$("tvDiagPanel");if(!p)return;
+ const age=lastTSESuccess?Math.floor((Date.now()-lastTSESuccess)/1000):null;
+ const cacheCount=Object.keys(liveVotes).length;
+ const localOk=Array.isArray(favorites)&&Array.isArray(tvSaved)&&liveHistory&&typeof liveHistory==="object";
+ const source=resultsOpen()?(lastTSESuccess?`OK • resposta há ${age<60?age+"s":Math.floor(age/60)+"min"}`:"Aguardando primeira resposta"):"Aguardando 17h";
+ p.innerHTML=`<div class="diagGrid"><div class="diagItem">Internet<br><b class="${navigator.onLine?"diagOk":"diagBad"}">${navigator.onLine?"OK":"OFFLINE"}</b></div><div class="diagItem">Base local<br><b class="${all.length?"diagOk":"diagWarn"}">${all.length?all.length.toLocaleString("pt-BR")+" candidatos":"aguardando"}</b></div><div class="diagItem">Resultados TSE<br><b class="${lastTSESuccess?"diagOk":"diagWarn"}">${esc(source)}</b></div><div class="diagItem">Cache local<br><b class="${localOk?"diagOk":"diagBad"}">${localOk?"OK • "+cacheCount+" resultados":"reparado/indisponível"}</b></div></div>${lastTSEError?`<div style="margin-top:8px;color:#91a3ba">Última falha: ${esc(lastTSEError)}</div>`:""}`;
+}
 function updateCountdown(){
  const el=$("tvNext");if(!el)return;if(!resultsOpen()){el.textContent=releaseWaitText();return}const s=Math.max(0,Math.ceil((nextLiveAt-Date.now())/1000));el.textContent=liveBusy?"consultando…":`próxima consulta em ${s}s`;
 }
@@ -404,12 +430,12 @@ async function updateLiveResults(){
  liveBusy=true;const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot"></span>Consultando TSE…';
  const groups=new Map();
  for(const c of tvSaved){const cc=cargoCode(c);if(!cc)continue;const sc=cc==="1"?"BR":(c.scope||"MA"),k=sc+"_"+cc;if(!groups.has(k))groups.set(k,{sc,cc,items:[]});groups.get(k).items.push(c)}
- let ok=0,latest="",maxPct=null;
+ let ok=0,latest="";liveGroupStatus={};
  for(const g of groups.values()){
   try{
    const r=await fetch(resultUrl(g.sc,g.cc),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
    const d=await r.json(),cand=flattenCandidates(d),pct=parseFloat(String(d.s?.pstn??d.s?.pst??"").replace(",","."));
-   if(Number.isFinite(pct))maxPct=maxPct===null?pct:Math.max(maxPct,pct);
+   liveGroupStatus[g.sc+"_"+g.cc]={scope:g.sc,office:officeShort(g.cc),pct:Number.isFinite(pct)?pct:null,time:[d.dt,d.ht].filter(Boolean).join(" ")};
    latest=[d.dt,d.ht].filter(Boolean).join(" ")||latest;
    for(const c of g.items){
     const hit=cand.find(x=>String(x.n)===String(c.numero));if(!hit)continue;
@@ -417,11 +443,12 @@ async function updateLiveResults(){
     if(old!==null)livePrevious[key]=old;
     liveVotes[key]={votes,pct:hit.pvap||hit.pvapn||"0",apuracao:Number.isFinite(pct)?pct:null,status:hit.st||"",destino:hit.dvt||"",hora:[d.dt,d.ht].filter(Boolean).join(" "),recebido:Date.now()};
     addHistory(key,liveVotes[key]);
-   } ok++;
-  }catch(e){}
+   } ok++;lastTSESuccess=Date.now();lastTSEError="";
+  }catch(e){lastTSEError=e.message||String(e)}
  }
  await updateElectedResults();await updateExteriorResults();liveErrors=ok?0:liveErrors+1;saveLive();
- if(status)status.innerHTML=ok?'<span class="liveDot"></span>'+(maxPct!==null?`${String(maxPct).replace(".",",")}% das seções totalizadas • ${latest||"TSE"}`:`Dados recebidos do TSE • ${latest}`):'<span class="liveDot off"></span>'+(Object.keys(liveVotes).length?"Fonte temporariamente indisponível • exibindo último dado salvo":"Aguardando disponibilização dos resultados pelo TSE");
+ renderGroupStatus();renderDiagnostics();
+ if(status)status.innerHTML=ok?'<span class="liveDot"></span>'+(`Dados recebidos do TSE • ${latest||"atualizado agora"}`):'<span class="liveDot off"></span>'+(Object.keys(liveVotes).length?"Fonte temporariamente indisponível • exibindo último dado salvo":"Aguardando disponibilização dos resultados pelo TSE");
  liveBusy=false;
  const delay=ok?LIVE_INTERVAL:Math.min(120000,LIVE_INTERVAL*Math.max(1,liveErrors));
  nextLiveAt=Date.now()+delay;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,delay);renderTV(false);updateCountdown();
@@ -479,6 +506,7 @@ $("importFav").onclick=()=>$("importFavFile").click();
 $("importFavFile").onchange=e=>{const file=e.target.files?.[0];if(file)importFavorites(file);e.target.value=""};
 
 
+$("tvDiag").onclick=()=>{const p=$("tvDiagPanel");p.classList.toggle("open");renderDiagnostics()};
 $("tvLock").onclick=toggleTVLock;
 $("tvWake").onclick=toggleWake;
 $("tvClearHistory").onclick=()=>{if(confirm("Limpar o histórico local da apuração?")){liveHistory={};localStorage.removeItem(LIVE_HISTORY_KEY);renderTV(false)}};
