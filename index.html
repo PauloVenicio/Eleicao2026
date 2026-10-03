@@ -39,6 +39,7 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 .tvHistory{margin-top:9px}.tvHistory summary{cursor:pointer;font-size:10px;color:#91a3ba}.tvHistoryList{font-size:10px;color:#91a3ba;line-height:1.6;margin-top:5px;max-height:80px;overflow:auto}
 .tvNet{font-weight:800}.tvNet.online{color:#21d07a}.tvNet.offline{color:#ff6670}.voteChanged{animation:votePulse .8s ease}
 @media(max-width:700px){.tvTools button{flex:1 1 45%;padding:9px;font-size:11px}}
+.backTop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;border:1px solid rgba(255,255,255,.14);border-radius:50%;background:rgba(18,39,65,.9);color:#fff;font-size:20px;font-weight:900;display:grid;place-items:center;cursor:pointer;z-index:900;opacity:0;visibility:hidden;transform:translateY(8px);transition:.2s;box-shadow:0 8px 24px rgba(0,0,0,.25);backdrop-filter:blur(8px)}.backTop.show{opacity:.72;visibility:visible;transform:none}.backTop:hover,.backTop:focus{opacity:1}.tvOverlay.open~.backTop{display:none}@media(max-width:600px){.backTop{right:12px;bottom:14px;width:38px;height:38px;font-size:18px}}
 </style>
 </head>
 <body>
@@ -290,5 +291,7 @@ $("tvWake").onclick=toggleWake;
 $("tvClearHistory").onclick=()=>{if(confirm("Limpar o histórico local da apuração?")){liveHistory={};localStorage.removeItem(LIVE_HISTORY_KEY);renderTV(false)}};
 document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&$("tvOverlay").classList.contains("open")&&$("tvWake").classList.contains("on")&&!wakeLock&&"wakeLock" in navigator){try{wakeLock=await navigator.wakeLock.request("screen")}catch(e){}}});
 load();
+const backTop=$("backTop");if(backTop){const syncBackTop=()=>backTop.classList.toggle("show",window.scrollY>500);window.addEventListener("scroll",syncBackTop,{passive:true});syncBackTop();backTop.onclick=()=>window.scrollTo({top:0,behavior:"smooth"});}
 </script>
+<button class="backTop" id="backTop" type="button" aria-label="Voltar ao topo" title="Voltar ao topo">↑</button>
 </body></html>
