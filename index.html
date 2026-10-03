@@ -265,6 +265,7 @@ function renderPartyVotes(){
  list.innerHTML=rows.map(x=>{const pct=grand?x.total*100/grand:0;return `<div class="partyVoteItem"><div class="partyVoteTop"><div class="partyVoteName"><small>Nº ${esc(x.n)}</small>${esc(x.sg||x.nm||"Partido")}</div><div class="partyVoteTotal">${x.total.toLocaleString("pt-BR")}<small>${pct.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}% do total exibido</small></div></div><div class="partyVoteBar"><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div><div class="partyVoteBreak">${x.proportional?`Nominais válidos: ${x.nominal.toLocaleString("pt-BR")} • Legenda válida: ${x.legenda.toLocaleString("pt-BR")}`:`Soma dos votos dos candidatos do partido: ${x.total.toLocaleString("pt-BR")}`}</div></div>`}).join("");
 }
 async function loadPartyVotes(){
+ if(!resultsOpen()){const sc=uf.value||"MA";$("partyVotesUF").textContent=sc;$("partyVotesList").innerHTML='<div class="partyVotesStatus">Aguardando início da divulgação oficial às 17:00 de Brasília.</div>';$("partyVotesInfo").textContent=releaseWaitText();return}
  const sc=uf.value||"MA",cc=$("partyVotesCargo").value,list=$("partyVotesList"),info=$("partyVotesInfo"),sel=$("partyVotesFilter");
  $("partyVotesUF").textContent=sc;
  if(cc==="8"&&sc!=="DF"){partyVotesRows=[];sel.innerHTML='<option value="">Todos os partidos</option>';list.innerHTML='<div class="partyVotesStatus">Deputado Distrital é exibido somente para o Distrito Federal.</div>';return}
@@ -293,6 +294,23 @@ function openPartyVotes(){
  $("partyVotesOverlay").classList.add("open");document.body.style.overflow="hidden";loadPartyVotes();
 }
 function closePartyVotes(){$("partyVotesOverlay").classList.remove("open");document.body.style.overflow=""}
+const RESULT_RELEASE_AT=new Date("2026-10-04T17:00:00-03:00").getTime();
+function resultsOpen(){return Date.now()>=RESULT_RELEASE_AT}
+function releaseWaitText(){
+ const ms=Math.max(0,RESULT_RELEASE_AT-Date.now()),m=Math.ceil(ms/60000);
+ if(ms<=0)return "";
+ if(m>=60){const hh=Math.floor(m/60),mm=m%60;return `Divulgação oficial às 17:00 de Brasília • faltam ${hh}h${mm?String(mm).padStart(2,"0")+"min":""}`}
+ return `Divulgação oficial às 17:00 de Brasília • faltam ${m} min`;
+}
+const ea10Cache={},ea10RetryAt={};
+function electedUrl(cc){
+ const arq="006259";return `${RESULT_BASE}/6259/dados/br/br-c${String(cc).padStart(4,"0")}-e${arq}-e.json`;
+}
+async function fetchEA10(cc){
+ const now=Date.now();if(ea10Cache[cc])return ea10Cache[cc];if(now<(ea10RetryAt[cc]||0))return null;
+ try{const r=await fetch(electedUrl(cc),{cache:"no-store"});if(!r.ok){ea10RetryAt[cc]=now+120000;return null}const d=await r.json();ea10Cache[cc]=d;return d}
+ catch(e){ea10RetryAt[cc]=now+120000;return null}
+}
 function resultUrl(sc,cc){
  const fed=cc==="1",ele=fed?"6257":"6259",arq=String(ele).padStart(6,"0"),abr=fed?"br":String(sc||"MA").toLowerCase();
  return `${RESULT_BASE}/${ele}/dados/${abr}/${abr}-c${String(cc).padStart(4,"0")}-e${arq}-u.json`;
@@ -303,19 +321,34 @@ function exteriorResultUrl(){
 async function updateElectedResults(){
  const grid=$("tvElectedGrid"),st=$("tvElectedStatus"),lab=$("tvElectedUF");if(!grid||!st)return false;
  const sc=uf.value||localStorage.getItem("eleicoesUF")||"MA";if(lab)lab.textContent=sc;
+ if(!resultsOpen()){grid.innerHTML='<div class="tvElectedEmpty">Aguardando o início da divulgação oficial dos resultados.</div>';st.textContent=releaseWaitText();return false}
  const jobs=[["1","Presidente","BR"],["3","Governador",sc],["5","Senador",sc],["6","Deputado Federal",sc],[sc==="DF"?"8":"7",sc==="DF"?"Deputado Distrital":"Deputado Estadual",sc]];
- const rows=[];let received=0;
+ const rows=[],seen=new Set();let received=0,stateFinal=false;
+ const localBases={};
  for(const [cc,office,scope] of jobs){
   try{
    const [rr,pr]=await Promise.all([fetch(resultUrl(scope,cc),{cache:"no-store"}),fetch(`data/${scope}_${cc}.json?v=${Date.now()}`,{cache:"no-store"})]);
-   if(!rr.ok)continue;const d=await rr.json();received++;
-   let base=[];if(pr.ok){const b=await pr.json();base=Array.isArray(b)?b:(b.candidatos||b.data||[])}
+   if(!rr.ok)continue;const d=await rr.json();received++;if(scope===sc&&d.and==="f")stateFinal=true;
+   let base=[];if(pr.ok){const b=await pr.json();base=Array.isArray(b)?b:(b.candidatos||b.data||[])}localBases[cc]=base;
    for(const x of flattenCandidates(d)){
-    const state=norm((x.st||"")+" "+(x.dvt||""));if(!state.includes("eleit"))continue;
-    const local=base.find(c=>String(c.numero)===String(x.n))||{};
+    if(String(x.e||"").toLowerCase()!=="s")continue;
+    const local=base.find(c=>String(c.numero)===String(x.n))||{},key=office+"_"+String(x.n);if(seen.has(key))continue;seen.add(key);
     rows.push({office,scope,name:local.nome||x.nmu||x.nm||"Candidato",number:String(x.n||local.numero||""),party:local.partido||x.sgp||"",photo:local.foto||"",votes:parseInt(x.vap||"0",10)||0});
    }
   }catch(e){}
+ }
+ // EA10 é a fonte específica de eleitos para Governador, Senador e Deputado Federal.
+ // Só consultamos após a totalização final da UF para evitar 404 prematuros no TSE.
+ if(stateFinal){
+  for(const [cc,office] of [["3","Governador"],["5","Senador"],["6","Deputado Federal"]]){
+   const d=await fetchEA10(cc);if(!d)continue;
+   const abr=(d.abr||[]).find(a=>String(a.cdabr||"").toUpperCase()===sc);if(!abr)continue;
+   const base=localBases[cc]||[];
+   for(const x of(abr.cand||[])){
+    const local=base.find(c=>String(c.numero)===String(x.n))||{},key=office+"_"+String(x.n);if(seen.has(key))continue;seen.add(key);
+    rows.push({office,scope:sc,name:local.nome||x.nmu||x.nm||"Candidato",number:String(x.n||local.numero||""),party:local.partido||x.sgp||"",photo:local.foto||"",votes:parseInt(x.vap||"0",10)||0});
+   }
+  }
  }
  const order={"Presidente":1,"Governador":2,"Senador":3,"Deputado Federal":4,"Deputado Estadual":5,"Deputado Distrital":5};rows.sort((a,b)=>(order[a.office]||9)-(order[b.office]||9));
  grid.innerHTML=rows.length?rows.map(x=>`<div class="tvElectedItem">${x.photo?`<img class="tvElectedPhoto candidateHalo ${x.office==="Presidente"&&String(x.number)==="22"?"halo22":x.office==="Presidente"&&String(x.number)==="13"?"halo13":""}" src="${esc(x.photo)}" alt="Foto de ${esc(x.name)}">`:`<div class="tvElectedPhoto tvAvatar">${initials(x.name)}</div>`}<div class="tvElectedInfo"><div class="tvElectedOffice">✓ ${esc(x.office)} • ${esc(x.scope)}</div><div class="tvElectedName">${esc(x.name)}</div><div class="tvElectedDetails">Nº ${esc(x.number)}${x.party?" • "+esc(x.party):""}${x.votes?" • "+x.votes.toLocaleString("pt-BR")+" votos":""}</div></div></div>`).join(""):`<div class="tvElectedEmpty">Ainda não há candidatos oficialmente marcados como eleitos para ${esc(sc)}. O quadro será preenchido automaticamente pelo TSE.</div>`;
@@ -326,6 +359,7 @@ async function updateExteriorResults(){
  const box=$("tvExterior"),grid=$("tvExteriorGrid"),st=$("tvExteriorStatus");
  if(!box||!grid||!st)return;
  box.classList.add("show");
+ if(!resultsOpen()){grid.innerHTML='<div class="tvWaiting">Aguardando início da divulgação oficial às 17:00 de Brasília.</div>';st.textContent=releaseWaitText();return}
  try{
   const [rr,pr]=await Promise.all([
    fetch(exteriorResultUrl(),{cache:"no-store"}),
@@ -359,10 +393,14 @@ function addHistory(key,v){
  if(!last||last.votes!==v.votes||last.pct!==v.pct){arr.push({t:Date.now(),votes:v.votes,pct:v.pct,apuracao:v.apuracao});liveHistory[key]=arr.slice(-240)}
 }
 function updateCountdown(){
- const el=$("tvNext");if(!el)return;const s=Math.max(0,Math.ceil((nextLiveAt-Date.now())/1000));el.textContent=liveBusy?"consultando…":`próxima consulta em ${s}s`;
+ const el=$("tvNext");if(!el)return;if(!resultsOpen()){el.textContent=releaseWaitText();return}const s=Math.max(0,Math.ceil((nextLiveAt-Date.now())/1000));el.textContent=liveBusy?"consultando…":`próxima consulta em ${s}s`;
 }
 async function updateLiveResults(){
  if(liveBusy||!tvSaved.length||document.hidden)return;
+ if(!resultsOpen()){
+  const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot off"></span>'+releaseWaitText();
+  nextLiveAt=RESULT_RELEASE_AT;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,Math.min(60000,Math.max(1000,RESULT_RELEASE_AT-Date.now())));renderTV(false);updateCountdown();return;
+ }
  liveBusy=true;const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot"></span>Consultando TSE…';
  const groups=new Map();
  for(const c of tvSaved){const cc=cargoCode(c);if(!cc)continue;const sc=cc==="1"?"BR":(c.scope||"MA"),k=sc+"_"+cc;if(!groups.has(k))groups.set(k,{sc,cc,items:[]});groups.get(k).items.push(c)}
@@ -407,7 +445,7 @@ function renderTV(startPolling=true){
  const tvOrder={"1":1,"3":2,"7":3,"6":4,"5":5}; const ordered=[...tvSaved].sort((a,b)=>(tvOrder[cargoCode(a)]||99)-(tvOrder[cargoCode(b)]||99));
  g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}</div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
 }
-function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();updateElectedResults();updateExteriorResults();startLive()}
+function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();if(resultsOpen()){updateElectedResults();updateExteriorResults()}else{updateElectedResults();updateExteriorResults()}startLive()}
 async function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow="";stopLive();if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
 function tvClock(){let d=new Date();$("tvClock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}tvClock();setInterval(tvClock,1000);
 $("partyVotesBtn").onclick=openPartyVotes;$("partyVotesClose").onclick=closePartyVotes;$("partyVotesOverlay").onclick=e=>{if(e.target===$("partyVotesOverlay"))closePartyVotes()};
