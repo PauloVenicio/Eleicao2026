@@ -135,14 +135,25 @@ function glueChoicesForUF(){
 }
 function addGlue(id){
  const c=all.find(x=>String(x.id)===String(id));if(!c)return;
- const cc=String(cargo.value),sc=scope();if(!["1","3","5","6","7","8"].includes(cc))return;
+ let cc=String(cargo.value),sc=cc==="1"?"BR":uf.value;
+ const cargoNome=norm(c.cargo||"");
+ if(cargoNome.includes("deputado estadual"))cc="7";
+ else if(cargoNome.includes("deputado distrital"))cc="8";
+ else if(cargoNome.includes("deputado federal"))cc="6";
+ else if(cargoNome.includes("senador")&&!cargoNome.includes("suplente"))cc="5";
+ else if(cargoNome.includes("governador")&&!cargoNome.includes("vice"))cc="3";
+ else if(cargoNome.includes("presidente")&&!cargoNome.includes("vice")){cc="1";sc="BR"}
+ if(!["1","3","5","6","7","8"].includes(cc))return;
  if(cc==="5"){
   const a=sc+"_5a",b=sc+"_5b";let key=a;
   if(voteGlue[a]&&String(voteGlue[a].id)!==String(c.id))key=b;
   if(voteGlue[a]&&String(voteGlue[a].id)===String(c.id))key=a;
   if(voteGlue[b]&&String(voteGlue[b].id)===String(c.id))key=b;
   voteGlue[key]={...c,scope:sc,cargoCodigo:cc};
- }else voteGlue[glueKey(c,cc,sc)]={...c,scope:sc,cargoCodigo:cc};
+ }else{
+  const key=cc==="1"?"BR_1":sc+"_"+cc;
+  voteGlue[key]={...c,scope:sc,cargoCodigo:cc};
+ }
  localStorage.setItem("eleicoesCola2026",JSON.stringify(voteGlue));render();renderGlue();
 }
 function removeGlue(k){delete voteGlue[k];localStorage.setItem("eleicoesCola2026",JSON.stringify(voteGlue));render();renderGlue()}
