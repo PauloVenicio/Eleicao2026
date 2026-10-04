@@ -53,7 +53,6 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 
 .tvTools{display:flex;gap:8px;flex-wrap:wrap;margin:0 0 14px}.tvTools button{background:#17263b;color:#fff}.tvTools button.on{background:#21d07a;color:#032113}
 .tvGroupStatus{display:flex;gap:6px;flex-wrap:wrap;margin:0 0 12px}.tvGroupChip{font-size:10px;font-weight:800;padding:5px 8px;border-radius:999px;background:#13243a;border:1px solid #294461;color:#b8c9dd}.tvGroupChip b{color:#fff}.diagPanel{display:none;margin:0 0 14px;padding:12px;border:1px solid #294461;border-radius:12px;background:#0c1828;font-size:12px}.diagPanel.open{display:block}.diagGrid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:7px}.diagItem{padding:8px;border-radius:8px;background:#13243a}.diagOk{color:#21d07a}.diagWarn{color:#ffd35a}.diagBad{color:#ff6670}@media(max-width:600px){.diagGrid{grid-template-columns:1fr}}
-.tvBUPreview{margin-top:14px;border:1px solid #8a6a24;border-radius:14px;background:rgba(120,83,14,.12);overflow:hidden}.tvBUHead{display:flex;justify-content:space-between;gap:10px;align-items:center;padding:12px 14px;border-bottom:1px solid rgba(255,211,90,.18)}.tvBUTitle{font-weight:900;font-size:13px}.tvBUTitle span{color:#ffd35a}.tvBUMeta{font-size:10px;color:#d5bd82}.tvBUNotice{padding:10px 14px;font-size:11px;line-height:1.45;color:#e6d7b4;background:rgba(255,211,90,.05)}.tvBUActions{display:flex;gap:7px;flex-wrap:wrap;padding:10px 14px 0}.tvBUActions button{background:#493814;color:#fff;border:1px solid #806625;padding:7px 9px;font-size:10px}.tvBUGrid{display:grid;grid-template-columns:repeat(auto-fit,minmax(220px,1fr));gap:9px;padding:12px 14px}.tvBUCountry{padding:10px;border:1px solid rgba(255,211,90,.18);border-radius:10px;background:#101b2b}.tvBUCountry b{font-size:12px}.tvBUCountry small{display:block;color:#9fb0c3;margin-top:3px}.tvBUVotes{display:flex;gap:6px;flex-wrap:wrap;margin-top:8px}.tvBUVote{font-size:10px;padding:4px 6px;border-radius:7px;background:#192a40}.tvBUStatus{padding:0 14px 12px;font-size:10px;color:#bcae8c}
 .tvHistory{margin-top:9px}.tvHistory summary{cursor:pointer;font-size:10px;color:#91a3ba}.tvHistoryList{font-size:10px;color:#91a3ba;line-height:1.6;margin-top:5px;max-height:80px;overflow:auto}
 .tvNet{font-weight:800}.tvNet.online{color:#21d07a}.tvNet.offline{color:#ff6670}.voteChanged{animation:votePulse .8s ease}
 @media(max-width:700px){.tvTools button{flex:1 1 45%;padding:9px;font-size:11px}}
@@ -137,13 +136,6 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
    <div class="tvExteriorGrid" id="tvExteriorGrid"></div>
    <div class="tvExteriorStatus" id="tvExteriorStatus">Aguardando dados oficiais do TSE.</div>
   </section>
-  <section class="tvBUPreview" id="tvBUPreview">
-   <div class="tvBUHead"><div class="tvBUTitle">🌎 <span>EXTERIOR • BOLETINS JÁ DIVULGADOS</span></div><div class="tvBUMeta">Prévia independente • BUs observados</div></div>
-   <div class="tvBUNotice"><b>⚠ NÃO É A TOTALIZAÇÃO OFICIAL.</b> Este quadro reúne somente boletins inseridos manualmente após conferência. Pode representar apenas parte das seções de um país. O resultado oficial do TSE permanece no quadro acima.</div>
-   <div class="tvBUActions"><button id="tvBUAdd">＋ Adicionar BU conferido</button><button id="tvBUClear">🧹 Limpar prévia</button></div>
-   <div class="tvBUGrid" id="tvBUGrid"></div>
-   <div class="tvBUStatus" id="tvBUStatus">Nenhum boletim inserido neste dispositivo.</div>
-  </section>
  </div>
 </div>
 <footer>PAINEL ELEIÇÕES 2026 • PROJETO INDEPENDENTE • PAULO CARVALHO DEV</footer>
@@ -162,7 +154,6 @@ let all=[],filtered=[],favorites=safeJSON("eleicoesFav",[]),page=1,perPage=30;
 if(!Array.isArray(favorites))favorites=[];
 let tvSaved=safeJSON("eleicoesTV",[]);if(!Array.isArray(tvSaved))tvSaved=[];
 let voteGlue=safeJSON("eleicoesCola2026",{});if(!voteGlue||Array.isArray(voteGlue)||typeof voteGlue!=="object")voteGlue={};
-let exteriorBUs=safeJSON("eleicoesExteriorBUs2026",[]);if(!Array.isArray(exteriorBUs))exteriorBUs=[];
 function clock(){let d=new Date();$("clock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}clock();setInterval(clock,1000);
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
 function initials(n=""){return n.split(/\s+/).filter(Boolean).slice(0,2).map(x=>x[0]).join("").toUpperCase()}
@@ -481,30 +472,7 @@ function renderTV(startPolling=true){
  const tvOrder={"1":1,"3":2,"7":3,"6":4,"5":5}; const ordered=[...tvSaved].sort((a,b)=>(tvOrder[cargoCode(a)]||99)-(tvOrder[cargoCode(b)]||99));
  g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}</div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
 }
-function saveExteriorBUs(){try{localStorage.setItem("eleicoesExteriorBUs2026",JSON.stringify(exteriorBUs))}catch(e){}}
-function renderExteriorBUs(){
- const grid=$("tvBUGrid"),st=$("tvBUStatus");if(!grid||!st)return;
- if(!exteriorBUs.length){grid.innerHTML='<div class="tvWaiting">Nenhum BU conferido foi inserido ainda.</div>';st.textContent="Prévia vazia • nenhum número é estimado pelo painel.";return}
- const countries={};
- for(const b of exteriorBUs){
-  const country=String(b.country||"Exterior").trim(),key=country.toUpperCase();if(!countries[key])countries[key]={name:country,bus:new Set(),votes:{}};
-  countries[key].bus.add(String(b.bu||"BU"));
-  for(const [n,v] of Object.entries(b.votes||{}))countries[key].votes[n]=(countries[key].votes[n]||0)+(parseInt(v,10)||0);
- }
- const rows=Object.values(countries).sort((a,b)=>a.name.localeCompare(b.name,"pt-BR"));
- grid.innerHTML=rows.map(x=>`<div class="tvBUCountry"><b>🌐 ${esc(x.name)}</b><small>${x.bus.size} BU${x.bus.size===1?"":"s"} inserido${x.bus.size===1?"":"s"}</small><div class="tvBUVotes">${Object.entries(x.votes).sort((a,b)=>Number(a[0])-Number(b[0])).map(([n,v])=>`<span class="tvBUVote">Nº ${esc(n)} • <b>${Number(v).toLocaleString("pt-BR")}</b></span>`).join("")}</div></div>`).join("");
- const newest=Math.max(...exteriorBUs.map(x=>Number(x.added)||0));st.textContent=`${exteriorBUs.length} BU${exteriorBUs.length===1?"":"s"} registrado${exteriorBUs.length===1?"":"s"} localmente${newest?" • atualizado "+new Date(newest).toLocaleTimeString("pt-BR"):""} • conferir cada BU na fonte antes de usar.`;
-}
-function addExteriorBU(){
- const country=prompt("País/localidade do BU (ex.: Japão):");if(!country)return;
- const bu=prompt("Identificação do boletim (zona/seção ou referência):");if(!bu)return;
- const raw=prompt("Votos por candidato no formato NÚMERO=VOTOS, separados por vírgula.\nEx.: 10=25, 13=80, 22=95");if(!raw)return;
- const votes={};for(const part of raw.split(",")){const m=part.trim().match(/^(\d{1,3})\s*=\s*(\d+)$/);if(m)votes[m[1]]=parseInt(m[2],10)}
- if(!Object.keys(votes).length){alert("Nenhum voto válido encontrado. Use o formato 13=80, 22=95.");return}
- const source=prompt("Fonte/referência usada para conferir este BU (opcional):")||"";
- exteriorBUs.push({country:country.trim(),bu:bu.trim(),votes,source:source.trim(),added:Date.now()});saveExteriorBUs();renderExteriorBUs();
-}
-function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();renderExteriorBUs();updateTVControls();updateNet();if(resultsOpen()){updateElectedResults();updateExteriorResults()}else{updateElectedResults();updateExteriorResults()}startLive()}
+function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();if(resultsOpen()){updateElectedResults();updateExteriorResults()}else{updateElectedResults();updateExteriorResults()}startLive()}
 async function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow="";stopLive();if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
 function tvClock(){let d=new Date();$("tvClock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}tvClock();setInterval(tvClock,1000);
 $("partyVotesBtn").onclick=openPartyVotes;$("partyVotesClose").onclick=closePartyVotes;$("partyVotesOverlay").onclick=e=>{if(e.target===$("partyVotesOverlay"))closePartyVotes()};
@@ -539,8 +507,7 @@ $("importFavFile").onchange=e=>{const file=e.target.files?.[0];if(file)importFav
 
 
 $("tvDiag").onclick=()=>{const p=$("tvDiagPanel");p.classList.toggle("open");renderDiagnostics()};
-$("tvBUAdd").onclick=addExteriorBU;
-$("tvBUClear").onclick=()=>{if(!exteriorBUs.length)return;if(confirm("Limpar todos os boletins inseridos manualmente nesta prévia?")){exteriorBUs=[];localStorage.removeItem("eleicoesExteriorBUs2026");renderExteriorBUs()}};
+
 $("tvLock").onclick=toggleTVLock;
 $("tvWake").onclick=toggleWake;
 $("tvClearHistory").onclick=()=>{if(confirm("Limpar o histórico local da apuração?")){liveHistory={};localStorage.removeItem(LIVE_HISTORY_KEY);renderTV(false)}};
