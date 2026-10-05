@@ -152,6 +152,11 @@ function safeJSON(key,fallback){
 let all=[],filtered=[],favorites=safeJSON("eleicoesFav",[]),page=1,perPage=30;
 if(!Array.isArray(favorites))favorites=[];
 let tvSaved=safeJSON("eleicoesTV",[]);if(!Array.isArray(tvSaved))tvSaved=[];
+// Segundo turno: o Modo TV fica restrito aos dois candidatos à Presidência.
+const TV_SEGUNDO_TURNO_NUMEROS=new Set(["22","13"]);
+tvSaved=tvSaved.filter(c=>String(c.cargoCodigo||"")==="1"&&TV_SEGUNDO_TURNO_NUMEROS.has(String(c.numero||"")));
+favorites=tvSaved.map(c=>String(c.id));
+try{localStorage.setItem("eleicoesTV",JSON.stringify(tvSaved));localStorage.setItem("eleicoesFav",JSON.stringify(favorites))}catch(e){}
 let voteGlue=safeJSON("eleicoesCola2026",{});if(!voteGlue||Array.isArray(voteGlue)||typeof voteGlue!=="object")voteGlue={};
 function clock(){let d=new Date();$("clock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}clock();setInterval(clock,1000);
 function esc(s=""){return String(s).replace(/[&<>"']/g,m=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[m]))}
