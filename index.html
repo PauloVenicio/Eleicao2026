@@ -466,7 +466,7 @@ function liveBlock(c){
  const v=liveVotes[String(c.id)]; if(!v)return '<div class="tvWaiting">Votos: aguardando início da divulgação oficial</div>';
  const prev=livePrevious[String(c.id)],delta=prev==null?0:v.votes-prev;
  const pontos=(liveHistory[String(c.id)]||[]).length,idade=v.recebido?Math.max(0,Math.floor((Date.now()-v.recebido)/1000)):null;
- const st=norm(v.status||""),dst=norm(v.destino||""); const badge=(st.includes("eleit")||dst.includes("eleit"))?`<div class="tvResultBadge eleito">✓ ELEITO</div>`:(st.includes("2 turno")||st.includes("segundo turno")||dst.includes("2 turno")||dst.includes("segundo turno"))?`<div class="tvResultBadge turno2">↪ 2º TURNO</div>`:"";
+ const st=norm(v.status||""),dst=norm(v.destino||""); const isEleito=/^(eleito|eleita)$/.test(st)||/^(eleito|eleita)$/.test(dst); const isTurno2=/^(2 turno|2º turno|segundo turno)$/.test(st)||/^(2 turno|2º turno|segundo turno)$/.test(dst); const badge=isEleito?`<div class="tvResultBadge eleito">✓ ELEITO</div>`:isTurno2?`<div class="tvResultBadge turno2">↪ 2º TURNO</div>`:"";
  return `${badge}<div class="tvVotes ${delta>0?"voteChanged":""}">${v.votes.toLocaleString("pt-BR")} votos</div><div class="tvPct">${esc(v.pct)}%</div>${delta>0?`<div class="tvDelta">+${delta.toLocaleString("pt-BR")} desde a última atualização</div>`:""}<div class="tvApuracao"><i style="width:${Math.max(0,Math.min(100,v.apuracao||0))}%"></i></div>${historyBlock(c)}<div class="tvCache">${idade!==null?`último dado recebido há ${idade<60?idade+"s":Math.floor(idade/60)+"min"}`:""}${pontos>1?` • ${pontos} pontos no histórico`:""}</div>`;
 }
 function renderTV(startPolling=true){
