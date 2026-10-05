@@ -57,7 +57,7 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 .tvNet{font-weight:800}.tvNet.online{color:#21d07a}.tvNet.offline{color:#ff6670}.voteChanged{animation:votePulse .8s ease}
 @media(max-width:700px){.tvTools button{flex:1 1 45%;padding:9px;font-size:11px}}
 .backTop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;padding:0;border:1px solid rgba(255,255,255,.14);border-radius:50%;background:rgba(18,39,65,.9);color:#fff;font-size:0;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:900;opacity:0;visibility:hidden;transform:translateY(8px);transition:.2s;box-shadow:0 8px 24px rgba(0,0,0,.25);backdrop-filter:blur(8px);line-height:1}.backTop::before{content:"";width:10px;height:10px;border-left:2px solid currentColor;border-top:2px solid currentColor;transform:translateY(3px) rotate(45deg)}.backTop.show{opacity:.72;visibility:visible;transform:none}.backTop:hover,.backTop:focus{opacity:1}.tvOverlay.open~.backTop{display:none}@media(max-width:600px){.backTop{right:12px;bottom:14px;width:38px;height:38px;font-size:18px}}
-</style>
+.secondRoundControls{grid-template-columns:repeat(3,1fr)}@media(max-width:600px){.secondRoundControls{grid-template-columns:1fr 1fr}.secondRoundControls #tvBtn{grid-column:1/-1}}</style>
 </head>
 <body>
 <header><div class="wrap">
@@ -67,19 +67,18 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 </div></header>
 <main>
 <div class="notice card"><b>DADOS OFICIAIS:</b> nome, número, partido, cargo, situação e foto são consultados no TSE. A situação da candidatura pode mudar conforme decisões da Justiça Eleitoral.</div>
-<section class="controls card">
-<label>UF<select id="uf"></select></label>
-<label>Cargo<select id="cargo"></select></label>
-<label>Partido<select id="party"><option value="">Todos</option></select></label>
-<label class="wide">Pesquisar<input id="search" placeholder="Nome, número ou partido"></label>
+<section class="controls card secondRoundControls">
+<div style="display:none">
+<select id="uf"><option value="BR">BR</option><option value="MA">MA</option></select>
+<select id="cargo"><option value="1" selected>Presidente</option></select>
+<select id="party"><option value="">Todos</option></select>
+<input id="search">
+<button id="glueBtn"></button><button id="partyVotesBtn"></button><button id="exportFav"></button><button id="importFav"></button>
+<input type="file" id="importFavFile" accept="application/json,.json">
+</div>
 <button class="primary" id="refresh">↻ Atualizar</button>
 <button class="secondary" id="theme">☾ Tema</button>
 <button id="tvBtn">📺 Modo TV</button>
-<button class="glueBtn" id="glueBtn">📝 Minha cola</button>
-<button class="partyVotesBtn" id="partyVotesBtn">📊 Votos por partido</button>
-<button class="secondary" id="exportFav">⬇ Backup favoritos</button>
-<button class="secondary" id="importFav">⬆ Restaurar favoritos</button>
-<input type="file" id="importFavFile" accept="application/json,.json" hidden>
 </section>
 <section class="status card"><h3><span class="dot"></span><span id="state">Preparando consulta…</span></h3><p id="detail">Aguardando.</p></section>
 <section class="stats">
