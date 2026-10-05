@@ -359,7 +359,8 @@ async function updateElectedResults(){
    const abr=(d.abr||[]).find(a=>String(a.cdabr||"").toUpperCase()===sc);if(!abr)continue;
    const base=localBases[cc]||[];
    for(const x of(abr.cand||[])){
-    const local=base.find(c=>String(c.numero)===String(x.n))||{},key=office+"_"+String(x.n);if(seen.has(key))continue;seen.add(key);
+    if(String(x.e??x.eleito??"").trim().toLowerCase()!=="s")continue;
+     const local=base.find(c=>String(c.numero)===String(x.n))||{},key=office+"_"+String(x.n);if(seen.has(key))continue;seen.add(key);
     rows.push({office,scope:sc,name:local.nome||x.nmu||x.nm||"Candidato",number:String(x.n||local.numero||""),party:local.partido||x.sgp||"",photo:local.foto||"",votes:parseInt(x.vap||"0",10)||0});
    }
   }
