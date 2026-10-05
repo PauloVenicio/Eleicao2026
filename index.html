@@ -327,6 +327,8 @@ function resultUrl(sc,cc){
  const fed=cc==="1",ele=fed?"6257":"6259",arq=String(ele).padStart(6,"0"),abr=fed?"br":String(sc||"MA").toLowerCase();
  return `${RESULT_BASE}/${ele}/dados/${abr}/${abr}-c${String(cc).padStart(4,"0")}-e${arq}-u.json`;
 }
+function formatPct2(v){const n=parseFloat(String(v??"").replace(",", "."));return Number.isFinite(n)?n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):String(v??"");}
+
 function exteriorResultUrl(){
  return `${RESULT_BASE}/6257/dados/zz/zz-c0001-e006257-u.json`;
 }
@@ -388,7 +390,7 @@ async function updateExteriorResults(){
   rows.sort((a,b)=>({22:1,13:2}[String(a.c.numero)]||9)-({22:1,13:2}[String(b.c.numero)]||9));
   exteriorVotes={};rows.forEach(x=>exteriorVotes[String(x.c.id)]=x);
   grid.innerHTML=rows.length?rows.map(x=>`<div class="tvExteriorItem">${x.c.foto?`<img class="tvExteriorPhoto candidateHalo ${String(x.c.numero)==="22"?"halo22":String(x.c.numero)==="13"?"halo13":""}" src="${esc(x.c.foto)}" alt="Foto de ${esc(x.c.nome)}">`:`<div class="tvAvatar">${initials(x.c.nome)}</div>`}<div class="tvExteriorInfo"><b>${esc(x.c.nome)}</b><small>Nº ${esc(x.c.numero)} • ${x.v.toLocaleString("pt-BR")} votos • ${esc(x.p)}%</small></div></div>`).join(""):'<div class="tvWaiting">Aguardando votos presidenciais do exterior.</div>';
-  st.textContent=`Dados oficiais TSE • Exterior${pct!==null?" • "+pct+"% das seções totalizadas":""}${d.dt||d.ht?" • "+[d.dt,d.ht].filter(Boolean).join(" "):""}`;
+  st.textContent=`Dados oficiais TSE • Exterior${pct!==null?" • "+formatPct2(pct)+"% das seções totalizadas":""}${d.dt||d.ht?" • "+[d.dt,d.ht].filter(Boolean).join(" "):""}`;
  }catch(e){
   grid.innerHTML='<div class="tvWaiting">Aguardando disponibilização do arquivo oficial do exterior.</div>';
   st.textContent='🌎 Exterior • conexão automática com o TSE (ZZ)';
