@@ -228,7 +228,31 @@ async function load(){
 }
 
 
-const RESULT_BASE="https://resultados.tse.jus.br/oficial/ele2026";
+const RESULT_ROOT="https://resultados.tse.jus.br/oficial";
+const RESULT_BASE=RESULT_ROOT+"/ele2026";
+const FIRST_TURN_FED="6257",FIRST_TURN_STATE="6259";
+let secondTurnFed=null,secondTurnConfigCheckedAt=0;
+async function resolveSecondTurnFederalElection(){
+ const now=Date.now();if(secondTurnFed&&now-secondTurnConfigCheckedAt<300000)return secondTurnFed;
+ secondTurnConfigCheckedAt=now;
+ try{
+  const r=await fetch(RESULT_ROOT+"/comum/config/ele-c.json?v="+now,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
+  const d=await r.json(),pool=[];
+  const walk=x=>{if(Array.isArray(x)){x.forEach(walk);return}if(x&&typeof x==="object"){pool.push(x);Object.values(x).forEach(walk)}};walk(d);
+  const cand=pool.filter(x=>{
+   const txt=norm([x.nm,x.nome,x.ds,x.descricao,x.nme,x.t,x.tipo,x.turno,x.nrTurno,x.nrt].filter(Boolean).join(" "));
+   const id=String(x.cd||x.codigo||x.id||x.eleicao||x.cdEleicao||x.cde||"");
+   return id&&((txt.includes("federal")||txt.includes("presidente"))&&(txt.includes("2 turno")||txt.includes("segundo turno")||String(x.turno||x.nrTurno||x.nrt||"")==="2"));
+  });
+  const hit=cand[0];if(hit)secondTurnFed=String(hit.cd||hit.codigo||hit.id||hit.eleicao||hit.cdEleicao||hit.cde||"");
+ }catch(e){}
+ return secondTurnFed;
+}
+async function secondTurnPresidentUrl(scope="br"){
+ const ele=await resolveSecondTurnFederalElection();if(!ele)return null;
+ const abr=String(scope||"br").toLowerCase(),arq=String(ele).padStart(6,"0");
+ return `${RESULT_BASE}/${ele}/dados/${abr}/${abr}-c0001-e${arq}-u.json`;
+}
 const LIVE_INTERVAL=30000,LIVE_CACHE_KEY="eleicoesLiveCache",LIVE_HISTORY_KEY="eleicoesLiveHistory";
 let liveVotes=safeJSON(LIVE_CACHE_KEY,{}),livePrevious={},liveTimer=null,liveTick=null,liveBusy=false,nextLiveAt=0,liveErrors=0;
 if(!liveVotes||Array.isArray(liveVotes)||typeof liveVotes!=="object")liveVotes={};
@@ -316,7 +340,7 @@ function releaseWaitText(){
  const ms=Math.max(0,RESULT_RELEASE_AT-Date.now()),m=Math.ceil(ms/60000);
  if(ms<=0)return "";
  if(m>=60){const hh=Math.floor(m/60),mm=m%60;return `2º turno • divulgação oficial em 25/10 às 17:00 de Brasília • faltam ${hh}h${mm?String(mm).padStart(2,"0")+"min":""}`}
- return `Divulgação oficial às 17:00 de Brasília • faltam ${m} min`;
+ return `2º turno • divulgação oficial em 25/10 às 17:00 de Brasília • faltam ${m} min`;
 }
 const ea10Cache={},ea10RetryAt={};
 function electedUrl(cc){
@@ -328,13 +352,14 @@ async function fetchEA10(cc){
  catch(e){ea10RetryAt[cc]=now+120000;return null}
 }
 function resultUrl(sc,cc){
- const fed=cc==="1",ele=fed?"6257":"6259",arq=String(ele).padStart(6,"0"),abr=fed?"br":String(sc||"MA").toLowerCase();
+ const fed=cc==="1",ele=fed?(secondTurnFed||FIRST_TURN_FED):FIRST_TURN_STATE,arq=String(ele).padStart(6,"0"),abr=fed?"br":String(sc||"MA").toLowerCase();
  return `${RESULT_BASE}/${ele}/dados/${abr}/${abr}-c${String(cc).padStart(4,"0")}-e${arq}-u.json`;
 }
 function formatPct2(v){const n=parseFloat(String(v??"").replace(",", "."));return Number.isFinite(n)?n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):String(v??"");}
 
 function exteriorResultUrl(){
- return `${RESULT_BASE}/6257/dados/zz/zz-c0001-e006257-u.json`;
+ const ele=secondTurnFed||FIRST_TURN_FED,arq=String(ele).padStart(6,"0");
+ return `${RESULT_BASE}/${ele}/dados/zz/zz-c0001-e${arq}-u.json`;
 }
 async function updateElectedResults(){
  const grid=$("tvElectedGrid"),st=$("tvElectedStatus"),lab=$("tvElectedUF");if(!grid||!st)return false;
@@ -375,6 +400,7 @@ async function updateElectedResults(){
  return received>0;
 }
 async function updateExteriorResults(){
+ if(resultsOpen())await resolveSecondTurnFederalElection();
  const box=$("tvExterior"),grid=$("tvExteriorGrid"),st=$("tvExteriorStatus");
  if(!box||!grid||!st)return;
  box.classList.add("show");
@@ -430,6 +456,7 @@ function updateCountdown(){
 }
 async function updateLiveResults(){
  if(liveBusy||!tvSaved.length||document.hidden)return;
+ if(resultsOpen())await resolveSecondTurnFederalElection();
  if(!resultsOpen()){
   const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot off"></span>'+releaseWaitText();
   nextLiveAt=RESULT_RELEASE_AT;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,Math.min(60000,Math.max(1000,RESULT_RELEASE_AT-Date.now())));renderTV(false);updateCountdown();return;
