@@ -115,7 +115,7 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 </div>
 <div class="tvOverlay" id="tvOverlay">
  <div class="tvHead">
-  <div class="tvTitle"><small>ACOMPANHAMENTO ELEITORAL</small><strong>📺 ELEIÇÕES 2026 • MODO TV</strong></div>
+  <div class="tvTitle"><small>ACOMPANHAMENTO ELEITORAL</small><strong>📺 ELEIÇÕES 2026 • 2º TURNO</strong></div>
   <div class="tvActions"><button class="live" id="tvReload">↻ Atualizar</button><button id="tvFull">⛶ Tela cheia</button><button id="tvLock">🔓 Travar</button><button id="tvWake">☀ Tela ativa</button><button id="tvClose">✕ Sair</button></div>
  </div>
  <div class="tvBody">
@@ -144,7 +144,7 @@ const UFS=["AC","AL","AP","AM","BA","CE","DF","ES","GO","MA","MT","MS","MG","PA"
 const OFFICES=[["1","Presidente"],["3","Governador"],["5","Senador"],["9","1º Suplente de Senador"],["10","2º Suplente de Senador"],["6","Deputado Federal"],["7","Deputado Estadual"],["8","Deputado Distrital"]];
 const $=id=>document.getElementById(id),uf=$("uf"),cargo=$("cargo"),party=$("party"),search=$("search");
 UFS.forEach(x=>uf.add(new Option(x,x))); OFFICES.forEach(x=>cargo.add(new Option(x[1],x[0])));
-uf.value=localStorage.getItem("eleicoesUF")||"MA"; cargo.value=localStorage.getItem("eleicoesCargo")||"3";
+uf.value=localStorage.getItem("eleicoesUF")||"MA"; cargo.value="1";
 function safeJSON(key,fallback){
  try{const raw=localStorage.getItem(key);if(!raw)return fallback;const v=JSON.parse(raw);return v??fallback}
  catch(e){try{localStorage.removeItem(key)}catch(_){}return fallback}
@@ -310,12 +310,12 @@ function openPartyVotes(){
  $("partyVotesOverlay").classList.add("open");document.body.style.overflow="hidden";loadPartyVotes();
 }
 function closePartyVotes(){$("partyVotesOverlay").classList.remove("open");document.body.style.overflow=""}
-const RESULT_RELEASE_AT=new Date("2026-10-04T17:00:00-03:00").getTime();
+const RESULT_RELEASE_AT=new Date("2026-10-25T17:00:00-03:00").getTime();
 function resultsOpen(){return Date.now()>=RESULT_RELEASE_AT}
 function releaseWaitText(){
  const ms=Math.max(0,RESULT_RELEASE_AT-Date.now()),m=Math.ceil(ms/60000);
  if(ms<=0)return "";
- if(m>=60){const hh=Math.floor(m/60),mm=m%60;return `Divulgação oficial às 17:00 de Brasília • faltam ${hh}h${mm?String(mm).padStart(2,"0")+"min":""}`}
+ if(m>=60){const hh=Math.floor(m/60),mm=m%60;return `2º turno • divulgação oficial em 25/10 às 17:00 de Brasília • faltam ${hh}h${mm?String(mm).padStart(2,"0")+"min":""}`}
  return `Divulgação oficial às 17:00 de Brasília • faltam ${m} min`;
 }
 const ea10Cache={},ea10RetryAt={};
