@@ -57,7 +57,7 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 .tvNet{font-weight:800}.tvNet.online{color:#21d07a}.tvNet.offline{color:#ff6670}.voteChanged{animation:votePulse .8s ease}
 @media(max-width:700px){.tvTools button{flex:1 1 45%;padding:9px;font-size:11px}}
 .backTop{position:fixed;right:16px;bottom:18px;width:42px;height:42px;padding:0;border:1px solid rgba(255,255,255,.14);border-radius:50%;background:rgba(18,39,65,.9);color:#fff;font-size:0;font-weight:900;display:flex;align-items:center;justify-content:center;cursor:pointer;z-index:900;opacity:0;visibility:hidden;transform:translateY(8px);transition:.2s;box-shadow:0 8px 24px rgba(0,0,0,.25);backdrop-filter:blur(8px);line-height:1}.backTop::before{content:"";width:10px;height:10px;border-left:2px solid currentColor;border-top:2px solid currentColor;transform:translateY(3px) rotate(45deg)}.backTop.show{opacity:.72;visibility:visible;transform:none}.backTop:hover,.backTop:focus{opacity:1}.tvOverlay.open~.backTop{display:none}@media(max-width:600px){.backTop{right:12px;bottom:14px;width:38px;height:38px;font-size:18px}}
-.secondRoundControls{grid-template-columns:repeat(3,1fr)}@media(max-width:600px){.secondRoundControls{grid-template-columns:1fr 1fr}.secondRoundControls #tvBtn{grid-column:1/-1}}</style>
+.secondRoundControls{grid-template-columns:repeat(3,1fr)}@media(max-width:600px){.secondRoundControls{grid-template-columns:1fr 1fr}.secondRoundControls #tvBtn{grid-column:1/-1}}.mainLiveGrid{display:grid;grid-template-columns:1fr;gap:16px}.mainLiveGrid .tvCard{min-height:230px}@media(min-width:900px){.mainLiveGrid{grid-template-columns:1fr 1fr}}</style>
 </head>
 <body>
 <header><div class="wrap">
@@ -81,15 +81,9 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 <button id="tvBtn">📺 Modo TV</button>
 </section>
 <section class="status card"><h3><span class="dot"></span><span id="state">Preparando consulta…</span></h3><p id="detail">Aguardando.</p></section>
-<section class="stats">
-<article class="stat card"><small>Total encontrado</small><strong id="total">—</strong></article>
-<article class="stat card"><small>Exibidos</small><strong id="shown">—</strong></article>
-<article class="stat card"><small>UF / Abrangência</small><strong id="scope">MA</strong></article>
-<article class="stat card"><small>Página</small><strong id="pageStat">1</strong></article>
-</section>
-<div class="section"><div><small>CADASTRO OFICIAL</small><h2>Candidatos</h2></div><div class="updated" id="updated">--</div></div>
-<section class="grid" id="cards"><div class="empty card">Carregando…</div></section>
-<div class="pager"><button id="prev">← Anterior</button><span id="pageInfo">Página 1</span><button id="next">Próxima →</button></div>
+<div style="display:none"><span id="total"></span><span id="shown"></span><span id="scope"></span><span id="pageStat"></span><span id="pageInfo"></span><button id="prev"></button><button id="next"></button><span id="updated"></span></div>
+<div class="section"><div><small>APURAÇÃO PRESIDENCIAL</small><h2>2º Turno</h2></div><div class="updated">Flávio Bolsonaro • Lula</div></div>
+<section class="tvGrid mainLiveGrid" id="cards"><div class="empty card">Carregando painel…</div></section>
 <section class="info card"><p><b>Fonte:</b> DivulgaCandContas / Tribunal Superior Eleitoral. O painel não classifica nem recomenda candidaturas. Presidente e Vice usam abrangência Brasil; os demais cargos são filtrados pela unidade da Federação. Fotos são carregadas sob demanda para reduzir o consumo de dados no celular.</p></section>
 </main>
 <div class="partyVotesOverlay" id="partyVotesOverlay">
@@ -208,10 +202,10 @@ function haloClass(c){
  return cc==="1"&&n==="22"?"halo22":cc==="1"&&n==="13"?"halo13":"";
 }
 function render(){
- let pages=Math.max(1,Math.ceil(filtered.length/perPage));if(page>pages)page=pages;let list=filtered.slice((page-1)*perPage,page*perPage);
- $("total").textContent=filtered.length.toLocaleString("pt-BR");$("shown").textContent=list.length;$("scope").textContent=scope();$("pageStat").textContent=page;$("pageInfo").textContent=`Página ${page} de ${pages}`;$("prev").disabled=page<=1;$("next").disabled=page>=pages;
- if(!list.length){$("cards").innerHTML='<div class="empty card">Nenhum candidato encontrado com estes filtros.</div>';return}
- $("cards").innerHTML=list.map(c=>`<article class="candidate card"><div class="ctop">${c.foto?`<img class="photo candidateHalo ${haloClass(c)}" loading="lazy" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}" onerror="this.style.display='none'">`:`<div class="avatar">${initials(c.nome)}</div>`}<div class="ci"><div class="office">${esc(c.cargo).toUpperCase()}</div><div class="name">${esc(c.nome)}</div><div class="party">${esc(c.partido)}</div><div class="situation">${esc(c.situacao||"Situação não informada")}</div></div><div class="number">${esc(c.numero)}</div></div><div class="meta"><span class="tag">${esc(scope())}</span>${c.federacao?`<span class="tag">${esc(c.federacao)}</span>`:""}<span class="tag">TSE</span></div></article>`).join("")
+ $("total").textContent=filtered.length.toLocaleString("pt-BR");$("shown").textContent=filtered.length;$("scope").textContent="BR";$("pageStat").textContent="1";$("pageInfo").textContent="Página 1 de 1";$("prev").disabled=true;$("next").disabled=true;
+ const g=$("cards");if(!filtered.length){g.innerHTML='<div class="empty card">Carregando candidatos do 2º turno…</div>';return}
+ const ordered=[...filtered].sort((a,b)=>({"22":1,"13":2}[String(a.numero)]||9)-({"22":1,"13":2}[String(b.numero)]||9));
+ g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">PRESIDENTE • BR</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}</div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("");
 }
 async function load(){
  uf.disabled=national();
@@ -454,7 +448,7 @@ async function updateLiveResults(){
  if(resultsOpen())await resolveSecondTurnFederalElection();
  if(!resultsOpen()){
   const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot off"></span>'+releaseWaitText();
-  nextLiveAt=RESULT_RELEASE_AT;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,Math.min(60000,Math.max(1000,RESULT_RELEASE_AT-Date.now())));renderTV(false);updateCountdown();return;
+  nextLiveAt=RESULT_RELEASE_AT;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,Math.min(60000,Math.max(1000,RESULT_RELEASE_AT-Date.now())));renderTV(false);refreshMainLive();updateCountdown();return;
  }
  liveBusy=true;const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot"></span>Consultando TSE…';
  const groups=new Map();
@@ -496,6 +490,7 @@ function liveBlock(c){
  const ft=FIRST_TURN_SNAPSHOT[String(c.numero)]||null,secondOpen=resultsOpen()&&!!secondTurnFed,displayVotes=secondOpen?v.votes:0,displayPct=secondOpen?v.pct:"0,00";
  return `${badge}${ft?`<div class="tvFirstRound">1º TURNO • <b>${ft.votes.toLocaleString("pt-BR")} votos • ${esc(ft.pct)}%</b></div>`:""}<div class="tvSecondLabel">2º TURNO • votos</div><div class="tvVotes ${delta>0&&secondOpen?"voteChanged":""}">${displayVotes.toLocaleString("pt-BR")} votos</div><div class="tvPct">${esc(displayPct)}%</div>${delta>0&&secondOpen?`<div class="tvDelta">+${delta.toLocaleString("pt-BR")} desde a última atualização</div>`:""}<div class="tvApuracao"><i style="width:${secondOpen?Math.max(0,Math.min(100,v.apuracao||0)):0}%"></i></div>${secondOpen?historyBlock(c):""}<div class="tvCache">${secondOpen&&idade!==null?`último dado recebido há ${idade<60?idade+"s":Math.floor(idade/60)+"min"}`:"Aguardando apuração do 2º turno"}${secondOpen&&pontos>1?` • ${pontos} pontos no histórico`:""}</div>`;
 }
+function refreshMainLive(){if($("cards")&&filtered.length)render()}
 function renderTV(startPolling=true){
  const g=$("tvGrid");$("tvCount").textContent=`${tvSaved.length} candidato${tvSaved.length===1?"":"s"} selecionado${tvSaved.length===1?"":"s"}`;
  if(!tvSaved.length){g.innerHTML='<div class="tvEmpty">Nenhum candidato selecionado.<br>Saia do Modo TV e toque na ⭐ dos candidatos que deseja acompanhar.</div>';return}
