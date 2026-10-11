@@ -353,7 +353,7 @@ function resultUrl(sc,cc){
 function formatPct2(v){const n=parseFloat(String(v??"").replace(",", "."));return Number.isFinite(n)?n.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2}):String(v??"");}
 
 function exteriorResultUrl(){
- const ele=secondTurnFed||FIRST_TURN_FED,arq=String(ele).padStart(6,"0");
+ const ele=secondTurnFed;if(!ele)throw new Error("Aguardando código oficial do segundo turno");const arq=String(ele).padStart(6,"0");
  return `${RESULT_BASE}/${ele}/dados/zz/zz-c0001-e${arq}-u.json`;
 }
 async function updateElectedResults(){
@@ -469,6 +469,7 @@ async function updateLiveResults(){
   const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot off"></span>'+releaseWaitText();
   nextLiveAt=RESULT_RELEASE_AT;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,Math.min(60000,Math.max(1000,RESULT_RELEASE_AT-Date.now())));renderTV(false);refreshMainLive();updateCountdown();return;
  }
+ if(!secondTurnFed){const status=$("tvLiveStatus");if(status)status.textContent="Aguardando configuração oficial do 2º turno no TSE";nationalVoteSummary={valid:0,blank:0,nulls:0,total:0};renderCountProgress();nextLiveAt=Date.now()+60000;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,60000);return}
  liveBusy=true;const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot"></span>Consultando TSE…';
  const groups=new Map();
  for(const c of tvSaved){const cc=cargoCode(c);if(!cc)continue;const sc=cc==="1"?"BR":(c.scope||"MA"),k=sc+"_"+cc;if(!groups.has(k))groups.set(k,{sc,cc,items:[]});groups.get(k).items.push(c)}
@@ -494,14 +495,14 @@ async function updateLiveResults(){
  if(status)status.innerHTML=ok?'<span class="liveDot"></span>'+(`Dados recebidos do TSE • ${latest||"atualizado agora"}`):'<span class="liveDot off"></span>'+(Object.keys(liveVotes).length?"Fonte temporariamente indisponível • exibindo último dado salvo":"Aguardando disponibilização dos resultados pelo TSE");
  liveBusy=false;
  const delay=ok?LIVE_INTERVAL:Math.min(120000,LIVE_INTERVAL*Math.max(1,liveErrors));
- nextLiveAt=Date.now()+delay;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,delay);renderTV(false);updateCountdown();
+ nextLiveAt=Date.now()+delay;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,delay);renderTV(false);refreshMainLive();updateCountdown();
 }
 function startLive(){
  clearTimeout(liveTimer);clearInterval(liveTick);nextLiveAt=Date.now();updateLiveResults();liveTick=setInterval(updateCountdown,1000);
 }
 function stopLive(){clearTimeout(liveTimer);clearInterval(liveTick);liveTimer=null;liveTick=null}
-document.addEventListener("visibilitychange",()=>{if(!document.hidden&&$("tvOverlay").classList.contains("open"))startLive()});
-window.addEventListener("online",()=>{if($("tvOverlay").classList.contains("open"))startLive()});
+document.addEventListener("visibilitychange",()=>{if(!document.hidden)startLive()});
+window.addEventListener("online",()=>{startLive()});
 const REGION_UFS={Norte:["AC","AP","AM","PA","RO","RR","TO"],Nordeste:["AL","BA","CE","MA","PB","PE","PI","RN","SE"],"Centro-Oeste":["DF","GO","MT","MS"],Sudeste:["ES","MG","RJ","SP"],Sul:["PR","RS","SC"]};
 async function fetchRegionCandidate(c){
  const ele=secondTurnFed;if(!ele)throw new Error("Código do 2º turno ainda não disponível");
@@ -542,7 +543,7 @@ function renderTV(startPolling=true){
  g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}<button class="regionBtn" onclick="openRegions(\'${c.id}\')">🌎 Votos por região</button></div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
 }
 function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();if(resultsOpen()){updateElectedResults();updateExteriorResults()}else{updateElectedResults();updateExteriorResults()}startLive()}
-async function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow="";stopLive();if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
+async function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow="";if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
 function tvClock(){let d=new Date();$("tvClock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}tvClock();setInterval(tvClock,1000);
 $("partyVotesBtn").onclick=openPartyVotes;$("partyVotesClose").onclick=closePartyVotes;$("partyVotesOverlay").onclick=e=>{if(e.target===$("partyVotesOverlay"))closePartyVotes()};
 $("partyVotesCargo").onchange=loadPartyVotes;$("partyVotesFilter").onchange=renderPartyVotes;
@@ -582,7 +583,7 @@ $("tvLock").onclick=toggleTVLock;
 $("tvWake").onclick=toggleWake;
 $("tvClearHistory").onclick=()=>{if(confirm("Limpar o histórico local da apuração?")){liveHistory={};localStorage.removeItem(LIVE_HISTORY_KEY);renderTV(false)}};
 document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&$("tvOverlay").classList.contains("open")&&$("tvWake").classList.contains("on")&&!wakeLock&&"wakeLock" in navigator){try{wakeLock=await navigator.wakeLock.request("screen")}catch(e){}}});
-load();
+load();startLive();
 const backTop=$("backTop");if(backTop){const syncBackTop=()=>backTop.classList.toggle("show",window.scrollY>500);window.addEventListener("scroll",syncBackTop,{passive:true});syncBackTop();backTop.onclick=()=>window.scrollTo({top:0,behavior:"smooth"});}
 </script>
 </body></html>
