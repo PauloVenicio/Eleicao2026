@@ -113,6 +113,20 @@ body.light{background:linear-gradient(180deg,#edf4f8,#f7fafc);--green:#087b4e;--
 .light .backTop{background:#e0eaf3;color:#18354f;border-color:#b9cbdc}
 .light footer{color:var(--muted)}
 .light .avatar,.light .tvAvatar,.light .photo,.light .tvPhoto{background:#e0eaf3;color:#18354f}
+
+/* Paleta verde profundo / amarelo suave. */
+body:not(.light){--bg:#061b14;--card:#0b291f;--card2:#10372a;background:radial-gradient(circle at 90% 0,rgba(32,217,139,.10),transparent 32%),linear-gradient(180deg,#061b14,#09251b 55%,#051810)}
+body:not(.light) .tvOverlay{background:linear-gradient(180deg,#051810,#09251b)}
+body:not(.light) .tvHead{background:rgba(5,24,16,.96)}
+body:not(.light) .tvCard,body:not(.light) .regionPanel,body:not(.light) .gluePanel,body:not(.light) .partyVotesPanel,body:not(.light) .glueSlot,body:not(.light) .partyVoteItem{background:linear-gradient(145deg,#0b291f,#10372a)}
+body:not(.light) .glueHead,body:not(.light) .partyVotesHead{background:rgba(9,37,27,.97)}
+body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradient(180deg,#fff5cc,#fff9e5)}
+.light .tvOverlay{background:linear-gradient(180deg,#fff5cc,#fff9e5)}
+.light .tvHead,.light .glueHead,.light .partyVotesHead{background:rgba(255,248,220,.97)}
+.light .tvCard,.light .regionPanel,.light .gluePanel,.light .partyVotesPanel,.light .glueSlot,.light .partyVoteItem{background:linear-gradient(145deg,#fff8dc,#fff1bd)}
+.light .voteSummaryItem,.light .tvElectedItem,.light .tvElectedEmpty,.light .tvExteriorItem,.light .regionRow,.light .tvFirstRound,.light .diagPanel,.light .diagItem,.light .tvGroupChip{background:#fff6d2}
+.light .countProgress,.light .tvLiveBar,.light .tvElected,.light .tvExterior,.light .gluePrivacy,.light .partyVotesInfo{background:#f5efcc;border-color:#b8c69a}
+.light select,.light input{background:#fff9e5}
 </style>
 </head>
 <body>
