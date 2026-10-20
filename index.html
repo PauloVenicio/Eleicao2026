@@ -141,6 +141,12 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
 .tvOverlay:fullscreen .tvCard{padding-top:50px;min-height:0}
 .tvOverlay:fullscreen .tvExterior{padding:12px 16px;margin:10px 0 0}
 .tvOverlay:fullscreen .tvExteriorStatus{margin-top:8px}
+
+.tvExteriorToggle{padding:7px 10px;font-size:11px;background:rgba(148,163,184,.10);color:inherit;border:1px solid var(--line);margin-left:auto;white-space:nowrap}
+.tvExteriorTitle{font-size:15px}
+#tvExteriorContent[hidden]{display:none}
+.light .tvExteriorToggle{background:#fff6d2;color:#18354f}
+@media(max-width:600px){.tvExteriorToggle{margin-left:0}}
 </style>
 </head>
 <body>
@@ -208,9 +214,11 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
   
   <div class="tvGrid" id="tvGrid"></div>
   <section class="tvExterior" id="tvExterior">
-   <div class="tvExteriorHead"><div class="tvExteriorTitle">🌎 <span>VOTOS DO EXTERIOR</span> • PRESIDENTE</div><div class="tvExteriorMeta">Zona Eleitoral do Exterior • ZZ</div></div>
+   <div class="tvExteriorHead"><div class="tvExteriorTitle">🌎 <span>VOTOS DO EXTERIOR</span> • PRESIDENTE</div><div class="tvExteriorMeta">Zona Eleitoral do Exterior • ZZ</div><button type="button" class="tvExteriorToggle" id="tvExteriorToggle" aria-expanded="false" aria-controls="tvExteriorContent">▸ Mostrar votos do exterior</button></div>
+   <div id="tvExteriorContent" hidden>
    <div class="tvExteriorGrid" id="tvExteriorGrid"></div>
    <div class="tvExteriorStatus" id="tvExteriorStatus">Aguardando dados oficiais do TSE.</div>
+   </div>
   </section>
  </div>
 </div>
@@ -691,5 +699,19 @@ document.addEventListener("fullscreenchange",scheduleTVFit);
 window.addEventListener("resize",scheduleTVFit);
 new MutationObserver(scheduleTVFit).observe($("tvOverlay"),{subtree:true,childList:true,characterData:true});
 document.fonts.ready.then(scheduleTVFit);
+function setExteriorExpanded(expanded){
+ $("tvExteriorContent").hidden=!expanded;
+ $("tvExteriorToggle").setAttribute("aria-expanded",String(expanded));
+ $("tvExteriorToggle").textContent=expanded?"▾ Recolher votos do exterior":"▸ Mostrar votos do exterior";
+ scheduleTVFit();
+}
+let exteriorExpanded=false;
+try{exteriorExpanded=localStorage.getItem("eleicoesExteriorExpanded")==="true"}catch(e){}
+setExteriorExpanded(exteriorExpanded);
+$("tvExteriorToggle").onclick=()=>{
+ exteriorExpanded=$("tvExteriorToggle").getAttribute("aria-expanded")!=="true";
+ setExteriorExpanded(exteriorExpanded);
+ try{localStorage.setItem("eleicoesExteriorExpanded",String(exteriorExpanded))}catch(e){}
+};
 </script>
 </body></html>
