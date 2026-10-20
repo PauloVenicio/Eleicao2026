@@ -62,6 +62,31 @@ main{padding:13px}.card{background:linear-gradient(145deg,var(--card),var(--card
 .tvOverlay .tvGrid{grid-template-columns:repeat(2,minmax(0,1fr));max-width:1320px;margin-left:auto;margin-right:auto;justify-content:center}
 .tvOverlay .tvCard{width:100%;min-width:0}
 @media(max-width:700px){.tvOverlay .tvGrid{grid-template-columns:1fr;max-width:620px}}
+
+/* Retratos inteiros, preservando as fotos oficiais e o espaço de cada candidato. */
+.photo,.avatar{width:90px;height:120px;border-radius:8px}
+.photo,.tvPhoto,.tvElectedPhoto,.tvExteriorPhoto{object-fit:contain;object-position:center}
+.tvPhoto,.tvAvatar{width:clamp(108px,10vw,150px);height:auto;aspect-ratio:3/4;border-radius:10px;border-width:2px}
+.tvCard{display:grid;grid-template-columns:auto minmax(0,1fr);align-items:start;padding-top:64px}
+.tvCard>div:not(.tvAvatar):not(.tvNumber){min-width:0;overflow-wrap:anywhere}
+.tvNumber{top:12px;right:14px;font-size:22px;padding:5px 9px}
+.name,.party,.situation{overflow-wrap:anywhere}
+.tvElectedPhoto{width:72px;height:96px;border-radius:8px;border-width:2px}
+.tvExteriorPhoto{width:108px;height:144px;border-radius:8px;border-width:2px}
+.photo.candidateHalo,.tvPhoto.candidateHalo,.tvElectedPhoto.candidateHalo,.tvExteriorPhoto.candidateHalo{animation:none;border-width:2px;box-shadow:none}
+.photo.halo22,.tvPhoto.halo22,.tvElectedPhoto.halo22,.tvExteriorPhoto.halo22{box-shadow:0 0 0 1px #facc15}
+@media(max-width:700px){
+ .tvPhoto,.tvAvatar{width:108px;height:144px}
+ .tvCard{gap:14px;padding-top:54px}
+ .tvNumber{font-size:20px}
+}
+@media(max-width:380px){
+ .photo,.avatar{width:75px;height:100px}
+ .ctop{gap:8px;flex-wrap:wrap}.ci{flex-basis:120px}
+ .tvCard{grid-template-columns:minmax(0,1fr)}
+ .tvPhoto,.tvAvatar{width:120px;height:160px}
+ .tvExteriorPhoto{width:84px;height:112px}
+}
 </style>
 </head>
 <body>
