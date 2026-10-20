@@ -147,6 +147,12 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
 #tvExteriorContent[hidden]{display:none}
 .light .tvExteriorToggle{background:#fff6d2;color:#18354f}
 @media(max-width:600px){.tvExteriorToggle{margin-left:0}}
+
+.firstRoundDetails{margin-top:10px}
+.firstRoundDetails summary{cursor:pointer;font-size:11px;color:var(--muted);width:fit-content;padding:5px 0}
+.firstRoundDetails summary:hover{color:var(--text)}
+.firstRoundDetails .firstRoundHide,.firstRoundDetails[open] .firstRoundShow{display:none}
+.firstRoundDetails[open] .firstRoundHide{display:inline}
 </style>
 </head>
 <body>
@@ -623,7 +629,7 @@ async function openRegions(id){
 window.openRegions=openRegions;
 function liveBlock(c){
  const ft=FIRST_TURN_SNAPSHOT[String(c.numero)]||null;
- const firstRound=ft?`<div class="tvFirstRound">1º TURNO • <b>${ft.votes.toLocaleString("pt-BR")} votos • ${esc(ft.pct)}%</b></div>`:"";
+ const firstRound=ft?`<details class="firstRoundDetails" data-candidate-number="${esc(c.numero)}" ${safeJSON("eleicoesPrimeiroTurno",{})?.[String(c.numero)]===true?"open":""}><summary><span class="firstRoundShow">Mostrar 1º turno</span><span class="firstRoundHide">Esconder 1º turno</span></summary><div class="tvFirstRound">1º TURNO • <b>${ft.votes.toLocaleString("pt-BR")} votos • ${esc(ft.pct)}%</b></div></details>`:"";
  const v=liveVotes[String(c.id)]; if(!v)return `${firstRound}<div class="tvSecondLabel">2º TURNO • votos</div><div class="tvWaiting">Aguardando início da divulgação oficial</div>`;
  const prev=livePrevious[String(c.id)],delta=prev==null?0:v.votes-prev;
  const pontos=(liveHistory[String(c.id)]||[]).length,idade=v.recebido?Math.max(0,Math.floor((Date.now()-v.recebido)/1000)):null;
@@ -680,6 +686,19 @@ $("tvLock").onclick=toggleTVLock;
 $("tvWake").onclick=toggleWake;
 $("tvClearHistory").onclick=()=>{if(confirm("Limpar o histórico local da apuração?")){liveHistory={};localStorage.removeItem(LIVE_HISTORY_KEY);renderTV(false)}};
 document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&$("tvOverlay").classList.contains("open")&&$("tvWake").classList.contains("on")&&!wakeLock&&"wakeLock" in navigator){try{wakeLock=await navigator.wakeLock.request("screen")}catch(e){}}});
+document.addEventListener("toggle",e=>{
+ const detail=e.target;
+ if(!detail.matches?.(".firstRoundDetails"))return;
+ const number=detail.dataset.candidateNumber,expanded=detail.open;
+ let state=safeJSON("eleicoesPrimeiroTurno",{});
+ if(!state||typeof state!=="object"||Array.isArray(state))state={};
+ state[number]=expanded;
+ try{localStorage.setItem("eleicoesPrimeiroTurno",JSON.stringify(state))}catch(e){}
+ document.querySelectorAll(".firstRoundDetails").forEach(other=>{
+  if(other!==detail&&other.dataset.candidateNumber===number&&other.open!==expanded)other.open=expanded;
+ });
+ scheduleTVFit();
+},true);
 load();startLive();
 const backTop=$("backTop");if(backTop){const syncBackTop=()=>backTop.classList.toggle("show",window.scrollY>500);window.addEventListener("scroll",syncBackTop,{passive:true});syncBackTop();backTop.onclick=()=>window.scrollTo({top:0,behavior:"smooth"});}
 
