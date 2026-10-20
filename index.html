@@ -127,6 +127,20 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
 .light .voteSummaryItem,.light .tvElectedItem,.light .tvElectedEmpty,.light .tvExteriorItem,.light .regionRow,.light .tvFirstRound,.light .diagPanel,.light .diagItem,.light .tvGroupChip{background:#fff6d2}
 .light .countProgress,.light .tvLiveBar,.light .tvElected,.light .tvExterior,.light .gluePrivacy,.light .partyVotesInfo{background:#f5efcc;border-color:#b8c69a}
 .light select,.light input{background:#fff9e5}
+
+/* Painel completo ajustado à altura da tela cheia. */
+.tvOverlay:fullscreen{overflow:hidden}
+.tvOverlay:fullscreen .tvHead{padding:10px 16px}
+.tvOverlay:fullscreen .tvBody{padding:12px 16px;margin:0 auto;max-width:none}
+.tvOverlay:fullscreen .countProgress{padding:10px 14px;margin-bottom:10px}
+.tvOverlay:fullscreen .voteSummary{margin:0 0 10px;gap:8px}
+.tvOverlay:fullscreen .voteSummaryItem{padding:8px 12px}
+.tvOverlay:fullscreen .tvLiveBar{padding:8px 12px;margin-bottom:10px}
+.tvOverlay:fullscreen .tvTools{margin-bottom:8px}
+.tvOverlay:fullscreen .tvInfo{margin-bottom:10px}
+.tvOverlay:fullscreen .tvCard{padding-top:50px;min-height:0}
+.tvOverlay:fullscreen .tvExterior{padding:12px 16px;margin:10px 0 0}
+.tvOverlay:fullscreen .tvExteriorStatus{margin-top:8px}
 </style>
 </head>
 <body>
@@ -658,5 +672,24 @@ $("tvClearHistory").onclick=()=>{if(confirm("Limpar o histórico local da apura�
 document.addEventListener("visibilitychange",async()=>{if(document.visibilityState==="visible"&&$("tvOverlay").classList.contains("open")&&$("tvWake").classList.contains("on")&&!wakeLock&&"wakeLock" in navigator){try{wakeLock=await navigator.wakeLock.request("screen")}catch(e){}}});
 load();startLive();
 const backTop=$("backTop");if(backTop){const syncBackTop=()=>backTop.classList.toggle("show",window.scrollY>500);window.addEventListener("scroll",syncBackTop,{passive:true});syncBackTop();backTop.onclick=()=>window.scrollTo({top:0,behavior:"smooth"});}
+
+/* Recalcula também quando chegam votos, diagnóstico ou dados do exterior. */
+let tvFitFrame=0;
+function scheduleTVFit(){
+ cancelAnimationFrame(tvFitFrame);
+ tvFitFrame=requestAnimationFrame(()=>{
+  const overlay=$("tvOverlay"),body=overlay.querySelector(".tvBody");
+  body.style.zoom="";
+  if(document.fullscreenElement!==overlay)return;
+  const available=overlay.clientHeight-overlay.querySelector(".tvHead").getBoundingClientRect().height-4;
+  const natural=body.getBoundingClientRect().height;
+  if(natural>available&&available>0)body.style.zoom=String(available/natural);
+  overlay.scrollTop=0;
+ });
+}
+document.addEventListener("fullscreenchange",scheduleTVFit);
+window.addEventListener("resize",scheduleTVFit);
+new MutationObserver(scheduleTVFit).observe($("tvOverlay"),{subtree:true,childList:true,characterData:true});
+document.fonts.ready.then(scheduleTVFit);
 </script>
 </body></html>
