@@ -549,6 +549,9 @@ async function fetchRegionCandidate(c){
 }
 async function openRegions(id){
  const c=tvSaved.find(x=>String(x.id)===String(id))||filtered.find(x=>String(x.id)===String(id));if(!c)return;
+ // O navegador só exibe descendentes do elemento em tela cheia.
+ const regionHost=document.fullscreenElement||document.body;
+ regionHost.appendChild($("regionOverlay"));
  $("regionOverlay").classList.add("open");$("regionTitle").textContent="🌎 "+c.nome+" • votos por região";$("regionGrid").innerHTML="";$("regionStatus").textContent="Consultando resultados das 27 UFs…";
  if(!resultsOpen()){ $("regionStatus").textContent="Aguardando abertura da apuração do 2º turno.";return}
  await resolveSecondTurnFederalElection();if(!secondTurnFed){$("regionStatus").textContent="Configuração oficial do 2º turno ainda não disponível no TSE.";return}
