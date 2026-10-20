@@ -622,12 +622,14 @@ async function openRegions(id){
 }
 window.openRegions=openRegions;
 function liveBlock(c){
- const v=liveVotes[String(c.id)]; if(!v)return '<div class="tvWaiting">Votos: aguardando início da divulgação oficial</div>';
+ const ft=FIRST_TURN_SNAPSHOT[String(c.numero)]||null;
+ const firstRound=ft?`<div class="tvFirstRound">1º TURNO • <b>${ft.votes.toLocaleString("pt-BR")} votos • ${esc(ft.pct)}%</b></div>`:"";
+ const v=liveVotes[String(c.id)]; if(!v)return `${firstRound}<div class="tvSecondLabel">2º TURNO • votos</div><div class="tvWaiting">Aguardando início da divulgação oficial</div>`;
  const prev=livePrevious[String(c.id)],delta=prev==null?0:v.votes-prev;
  const pontos=(liveHistory[String(c.id)]||[]).length,idade=v.recebido?Math.max(0,Math.floor((Date.now()-v.recebido)/1000)):null;
  const st=norm(v.status||""),dst=norm(v.destino||""); const isEleito=/^(eleito|eleita)$/.test(st)||/^(eleito|eleita)$/.test(dst); const isTurno2=/^(2 turno|2º turno|segundo turno)$/.test(st)||/^(2 turno|2º turno|segundo turno)$/.test(dst); const badge=isEleito?`<div class="tvResultBadge eleito">✓ ELEITO</div>`:isTurno2?`<div class="tvResultBadge turno2">↪ 2º TURNO</div>`:"";
- const ft=FIRST_TURN_SNAPSHOT[String(c.numero)]||null,secondOpen=resultsOpen()&&!!secondTurnFed,displayVotes=secondOpen?v.votes:0,displayPct=secondOpen?v.pct:"0,00";
- return `${badge}${ft?`<div class="tvFirstRound">1º TURNO • <b>${ft.votes.toLocaleString("pt-BR")} votos • ${esc(ft.pct)}%</b></div>`:""}<div class="tvSecondLabel">2º TURNO • votos</div><div class="tvVotes ${delta>0&&secondOpen?"voteChanged":""}">${displayVotes.toLocaleString("pt-BR")} votos</div><div class="tvPct">${esc(displayPct)}%</div>${delta>0&&secondOpen?`<div class="tvDelta">+${delta.toLocaleString("pt-BR")} desde a última atualização</div>`:""}<div class="tvApuracao"><i style="width:${secondOpen?Math.max(0,Math.min(100,v.apuracao||0)):0}%"></i></div>${secondOpen?historyBlock(c):""}<div class="tvCache">${secondOpen&&idade!==null?`último dado recebido há ${idade<60?idade+"s":Math.floor(idade/60)+"min"}`:"Aguardando apuração do 2º turno"}${secondOpen&&pontos>1?` • ${pontos} pontos no histórico`:""}</div>`;
+ const secondOpen=resultsOpen()&&!!secondTurnFed,displayVotes=secondOpen?v.votes:0,displayPct=secondOpen?v.pct:"0,00";
+ return `${badge}${firstRound}<div class="tvSecondLabel">2º TURNO • votos</div><div class="tvVotes ${delta>0&&secondOpen?"voteChanged":""}">${displayVotes.toLocaleString("pt-BR")} votos</div><div class="tvPct">${esc(displayPct)}%</div>${delta>0&&secondOpen?`<div class="tvDelta">+${delta.toLocaleString("pt-BR")} desde a última atualização</div>`:""}<div class="tvApuracao"><i style="width:${secondOpen?Math.max(0,Math.min(100,v.apuracao||0)):0}%"></i></div>${secondOpen?historyBlock(c):""}<div class="tvCache">${secondOpen&&idade!==null?`último dado recebido há ${idade<60?idade+"s":Math.floor(idade/60)+"min"}`:"Aguardando apuração do 2º turno"}${secondOpen&&pontos>1?` • ${pontos} pontos no histórico`:""}</div>`;
 }
 function refreshMainLive(){if($("cards")&&filtered.length)render()}
 function renderTV(startPolling=true){
