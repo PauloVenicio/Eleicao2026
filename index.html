@@ -153,6 +153,10 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
 .firstRoundDetails summary:hover{color:var(--text)}
 .firstRoundDetails .firstRoundHide,.firstRoundDetails[open] .firstRoundShow{display:none}
 .firstRoundDetails[open] .firstRoundHide{display:inline}
+
+/* Menor ampliação das fotos oficiais para preservar a nitidez disponível. */
+.tvPhoto,.tvAvatar{width:clamp(96px,8vw,120px);height:auto;aspect-ratio:3/4}
+@media(max-width:700px){.tvPhoto,.tvAvatar{width:96px;height:128px}}
 </style>
 </head>
 <body>
