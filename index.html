@@ -167,6 +167,13 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
 .stateResults .stateUnavailable{color:var(--muted)}
 .regionGrid.statesView{display:block}
 @media(max-width:420px){.candidateActions .regionBtn{flex:1 1 130px}.stateResults{font-size:12px}.stateResults th,.stateResults td{padding:9px 5px}}
+
+/* Mantém a cor do tema também na área exposta pela rolagem do navegador. */
+html{min-height:100%;background-color:#061b14;color-scheme:dark}
+html:has(body.light){background-color:#fff5cc;color-scheme:light}
+body{min-height:100vh;min-height:100dvh}
+body:not(.light){background-color:#061b14}
+body.light{background-color:#fff5cc}
 </style>
 </head>
 <body>
