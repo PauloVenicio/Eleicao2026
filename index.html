@@ -120,13 +120,13 @@ body:not(.light) .tvOverlay{background:linear-gradient(180deg,#051810,#09251b)}
 body:not(.light) .tvHead{background:rgba(5,24,16,.96)}
 body:not(.light) .tvCard,body:not(.light) .regionPanel,body:not(.light) .gluePanel,body:not(.light) .partyVotesPanel,body:not(.light) .glueSlot,body:not(.light) .partyVoteItem{background:linear-gradient(145deg,#0b291f,#10372a)}
 body:not(.light) .glueHead,body:not(.light) .partyVotesHead{background:rgba(9,37,27,.97)}
-body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradient(180deg,#fff5cc,#fff9e5)}
-.light .tvOverlay{background:linear-gradient(180deg,#fff5cc,#fff9e5)}
-.light .tvHead,.light .glueHead,.light .partyVotesHead{background:rgba(255,248,220,.97)}
-.light .tvCard,.light .regionPanel,.light .gluePanel,.light .partyVotesPanel,.light .glueSlot,.light .partyVoteItem{background:linear-gradient(145deg,#fff8dc,#fff1bd)}
-.light .voteSummaryItem,.light .tvElectedItem,.light .tvElectedEmpty,.light .tvExteriorItem,.light .regionRow,.light .tvFirstRound,.light .diagPanel,.light .diagItem,.light .tvGroupChip{background:#fff6d2}
-.light .countProgress,.light .tvLiveBar,.light .tvElected,.light .tvExterior,.light .gluePrivacy,.light .partyVotesInfo{background:#f5efcc;border-color:#b8c69a}
-.light select,.light input{background:#fff9e5}
+body.light{--bg:#deded3;--card:#e8e7de;--card2:#dedfd4;background:linear-gradient(180deg,#deded3,#e2e3d9)}
+.light .tvOverlay{background:linear-gradient(180deg,#deded3,#e2e3d9)}
+.light .tvHead,.light .glueHead,.light .partyVotesHead{background:rgba(232,231,222,.97)}
+.light .tvCard,.light .regionPanel,.light .gluePanel,.light .partyVotesPanel,.light .glueSlot,.light .partyVoteItem{background:linear-gradient(145deg,#e8e7de,#dedfd4)}
+.light .voteSummaryItem,.light .tvElectedItem,.light .tvElectedEmpty,.light .tvExteriorItem,.light .regionRow,.light .tvFirstRound,.light .diagPanel,.light .diagItem,.light .tvGroupChip{background:#e3e3d8}
+.light .countProgress,.light .tvLiveBar,.light .tvElected,.light .tvExterior,.light .gluePrivacy,.light .partyVotesInfo{background:#d9dfd0;border-color:#b0bba7}
+.light select,.light input{background:#e2e3d9}
 
 /* Painel completo ajustado à altura da tela cheia. */
 .tvOverlay:fullscreen{overflow:hidden}
@@ -145,7 +145,7 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
 .tvExteriorToggle{padding:7px 10px;font-size:11px;background:rgba(148,163,184,.10);color:inherit;border:1px solid var(--line);margin-left:auto;white-space:nowrap}
 .tvExteriorTitle{font-size:15px}
 #tvExteriorContent[hidden]{display:none}
-.light .tvExteriorToggle{background:#fff6d2;color:#18354f}
+.light .tvExteriorToggle{background:#e3e3d8;color:#18354f}
 @media(max-width:600px){.tvExteriorToggle{margin-left:0}}
 
 .firstRoundDetails{margin-top:10px}
@@ -170,10 +170,10 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
 
 /* Mantém a cor do tema também na área exposta pela rolagem do navegador. */
 html{min-height:100%;background-color:#061b14;color-scheme:dark}
-html:has(body.light){background-color:#fff5cc;color-scheme:light}
+html:has(body.light){background-color:#deded3;color-scheme:light}
 body{min-height:100vh;min-height:100dvh}
 body:not(.light){background-color:#061b14}
-body.light{background-color:#fff5cc}
+body.light{background-color:#deded3}
 </style>
 </head>
 <body>
