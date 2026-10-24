@@ -157,6 +157,16 @@ body.light{--bg:#fff5cc;--card:#fff8dc;--card2:#fff1bd;background:linear-gradien
 /* Menor ampliação das fotos oficiais para preservar a nitidez disponível. */
 .tvPhoto,.tvAvatar{width:clamp(96px,8vw,120px);height:auto;aspect-ratio:3/4}
 @media(max-width:700px){.tvPhoto,.tvAvatar{width:96px;height:128px}}
+
+.candidateActions{display:flex;flex-wrap:wrap;gap:8px}
+.candidateActions .regionBtn{flex:0 1 auto}
+.stateResults{width:100%;border-collapse:collapse;margin-top:14px;font-size:13px}
+.stateResults th,.stateResults td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right}
+.stateResults th:first-child,.stateResults td:first-child{text-align:left}
+.stateResults th{color:var(--muted);font-size:11px}
+.stateResults .stateUnavailable{color:var(--muted)}
+.regionGrid.statesView{display:block}
+@media(max-width:420px){.candidateActions .regionBtn{flex:1 1 130px}.stateResults{font-size:12px}.stateResults th,.stateResults td{padding:9px 5px}}
 </style>
 </head>
 <body>
@@ -313,7 +323,7 @@ function render(){
  $("total").textContent=filtered.length.toLocaleString("pt-BR");$("shown").textContent=filtered.length;$("scope").textContent="BR";$("pageStat").textContent="1";$("pageInfo").textContent="Página 1 de 1";$("prev").disabled=true;$("next").disabled=true;
  const g=$("cards");if(!filtered.length){g.innerHTML='<div class="empty card">Carregando candidatos do 2º turno…</div>';return}
  const ordered=[...filtered].sort((a,b)=>({"22":1,"13":2}[String(a.numero)]||9)-({"22":1,"13":2}[String(b.numero)]||9));
- g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">PRESIDENTE • BR</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}<button class="regionBtn" onclick="openRegions(\'${c.id}\')">🌎 Votos por região</button></div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("");
+ g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">PRESIDENTE • BR</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}<div class="candidateActions"><button class="regionBtn" onclick="openRegions(\'${c.id}\')">🌎 Votos por região</button><button class="regionBtn" onclick="openStates(\'${c.id}\')">🇧🇷 Votos por estado</button></div></div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("");
 }
 async function load(){
  uf.disabled=national();
@@ -636,7 +646,10 @@ async function fetchRegionCandidate(c){
  }));
  await Promise.all(jobs);return totals;
 }
+let regionalRequest=0;
 async function openRegions(id){
+ const request=++regionalRequest;
+ $("regionGrid").classList.remove("statesView");
  const c=tvSaved.find(x=>String(x.id)===String(id))||filtered.find(x=>String(x.id)===String(id));if(!c)return;
  // O navegador só exibe descendentes do elemento em tela cheia.
  const regionHost=document.fullscreenElement||document.body;
@@ -644,10 +657,48 @@ async function openRegions(id){
  $("regionOverlay").classList.add("open");$("regionTitle").textContent="🌎 "+c.nome+" • votos por região";$("regionGrid").innerHTML="";$("regionStatus").textContent="Consultando resultados das 27 UFs…";
  if(!resultsOpen()){ $("regionStatus").textContent="Aguardando abertura da apuração do 2º turno.";return}
  await resolveSecondTurnFederalElection();if(!secondTurnFed){$("regionStatus").textContent="Configuração oficial do 2º turno ainda não disponível no TSE.";return}
- const t=await fetchRegionCandidate(c),rows=Object.entries(t);$("regionStatus").textContent="Dados oficiais TSE • soma dos resultados estaduais • atualização sob demanda";
+ const t=await fetchRegionCandidate(c);if(request!==regionalRequest)return;const rows=Object.entries(t);$("regionStatus").textContent="Dados oficiais TSE • soma dos resultados estaduais • atualização sob demanda";
  $("regionGrid").innerHTML=rows.map(([reg,x])=>{const pct=x.valid?x.votes/x.valid*100:0;const states=x.ufs.sort((a,b)=>b.votes-a.votes).map(s=>s.uf+" "+s.votes.toLocaleString("pt-BR")).join(" • ");return `<div class="regionRow"><div class="regionRowTop"><span>${reg}</span><span>${pct.toLocaleString("pt-BR",{minimumFractionDigits:2,maximumFractionDigits:2})}%</span></div><div><b>${x.votes.toLocaleString("pt-BR")}</b> votos</div><div class="regionBar"><i style="width:${Math.max(0,Math.min(100,pct))}%"></i></div><div class="regionStates">${states||"Aguardando dados das UFs"}</div></div>`}).join("");
 }
 window.openRegions=openRegions;
+
+async function openStates(id){
+ const c=tvSaved.find(x=>String(x.id)===String(id))||filtered.find(x=>String(x.id)===String(id));if(!c)return;
+ const request=++regionalRequest;
+ (document.fullscreenElement||document.body).appendChild($("regionOverlay"));
+ $("regionOverlay").classList.add("open");
+ $("regionTitle").textContent="🇧🇷 "+c.nome+" • votos por estado";
+ $("regionGrid").classList.add("statesView");
+ $("regionGrid").innerHTML="";
+ $("regionStatus").textContent="Consultando resultados das 27 UFs…";
+ if(!resultsOpen()){$("regionStatus").textContent="Aguardando abertura da apuração do 2º turno.";return}
+ await resolveSecondTurnFederalElection();
+ if(request!==regionalRequest)return;
+ if(!secondTurnFed){$("regionStatus").textContent="Configuração oficial do 2º turno ainda não disponível no TSE.";return}
+ const election=secondTurnFed;
+ const rows=await Promise.all(UFS.map(async UF=>{
+  try{
+   const uf=UF.toLowerCase(),arq=String(election).padStart(6,"0");
+   const res=await fetchWithTimeout(RESULT_BASE+"/"+election+"/dados/"+uf+"/"+uf+"-c0001-e"+arq+"-u.json",{cache:"no-store"});
+   if(!res.ok)throw new Error("HTTP "+res.status);
+   const d=await res.json(),candidates=flattenCandidates(d),hit=candidates.find(x=>String(x.n)===String(c.numero));
+   if(!hit)throw new Error("Candidato ainda indisponível");
+   const votes=Number(hit.vap);
+   if(!Number.isFinite(votes)||votes<0)throw new Error("Votos indisponíveis");
+   const valid=numField(d,["v.vv","v.vvc","vv","vvc"])||candidates.reduce((sum,x)=>sum+(Number(x.vap)||0),0);
+   return {uf:UF,votes,pct:valid?votes/valid*100:0};
+  }catch(e){return {uf:UF,unavailable:true}}
+ }));
+ if(request!==regionalRequest)return;
+ const received=rows.filter(x=>!x.unavailable).length;
+ $("regionStatus").textContent="Dados oficiais TSE • "+received+"/27 UFs disponíveis • percentual dos votos válidos em cada UF • atualização ao abrir";
+ const table=document.createElement("table");table.className="stateResults";
+ const caption=document.createElement("caption");caption.textContent="Votos de "+c.nome+" por unidade da Federação";caption.style.textAlign="left";table.appendChild(caption);
+ table.insertAdjacentHTML("beforeend",'<thead><tr><th scope="col">UF</th><th scope="col">Votos</th><th scope="col">% válidos na UF</th></tr></thead><tbody>'+rows.map(x=>'<tr'+(x.unavailable?' class="stateUnavailable"':'')+'><th scope="row">'+esc(x.uf)+'</th><td>'+(x.unavailable?'—':x.votes.toLocaleString("pt-BR"))+'</td><td>'+(x.unavailable?'Indisponível':formatPct2(x.pct)+'%')+'</td></tr>').join("")+'</tbody>');
+ $("regionGrid").replaceChildren(table);
+}
+window.openStates=openStates;
+
 function liveBlock(c){
  const ft=FIRST_TURN_SNAPSHOT[String(c.numero)]||null;
  const firstRound=ft?`<details class="firstRoundDetails" data-candidate-number="${esc(c.numero)}" ${safeJSON("eleicoesPrimeiroTurno",{})?.[String(c.numero)]===true?"open":""}><summary><span class="firstRoundShow">Mostrar 1º turno</span><span class="firstRoundHide">Esconder 1º turno</span></summary><div class="tvFirstRound">1º TURNO • <b>${ft.votes.toLocaleString("pt-BR")} votos • ${esc(ft.pct)}%</b></div></details>`:"";
@@ -664,7 +715,7 @@ function renderTV(startPolling=true){
  const g=$("tvGrid");$("tvCount").textContent=`${tvSaved.length} candidato${tvSaved.length===1?"":"s"} selecionado${tvSaved.length===1?"":"s"}`;
  if(!tvSaved.length){g.innerHTML='<div class="tvEmpty">Nenhum candidato selecionado.<br>Saia do Modo TV e toque na ⭐ dos candidatos que deseja acompanhar.</div>';return}
  const tvOrder={"1":1,"3":2,"7":3,"6":4,"5":5}; const ordered=[...tvSaved].sort((a,b)=>{if(cargoCode(a)==="1"&&cargoCode(b)==="1"){const p={"22":1,"13":2};return (p[String(a.numero)]||9)-(p[String(b.numero)]||9)}return (tvOrder[cargoCode(a)]||99)-(tvOrder[cargoCode(b)]||99)});
- g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}<button class="regionBtn" onclick="openRegions(\'${c.id}\')">🌎 Votos por região</button></div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
+ g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}<div class="candidateActions"><button class="regionBtn" onclick="openRegions(\'${c.id}\')">🌎 Votos por região</button><button class="regionBtn" onclick="openStates(\'${c.id}\')">🇧🇷 Votos por estado</button></div></div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
 }
 function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();if(resultsOpen()){updateElectedResults();updateExteriorResults()}else{updateElectedResults();updateExteriorResults()}startLive()}
 async function closeTV(){if(document.fullscreenElement===$("tvOverlay")){try{await document.exitFullscreen()}catch(e){}}$("tvOverlay").classList.remove("open");document.body.style.overflow="";if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
