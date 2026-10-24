@@ -319,7 +319,7 @@ async function load(){
  uf.disabled=national();
  if(cargo.value==="8"&&uf.value!=="DF"){all=[];filtered=[];$("state").textContent="Deputado Distrital é cargo do DF";$("detail").textContent="Selecione DF.";render();return}
  let s=scope(),file=`data/${s}_${cargo.value}.json?v=${Date.now()}`;$("state").textContent="Carregando base oficial…";$("detail").textContent=`${cargo.options[cargo.selectedIndex].text} • ${s}`;
- try{let r=await fetch(file,{cache:"no-store"});if(!r.ok)throw new Error("Base ainda não gerada ("+r.status+")");let d=await r.json();all=d.candidatos||[];if(String(cargo.value)==="1"){all=all.filter(c=>TV_SEGUNDO_TURNO_NUMEROS.has(String(c.numero||"")));tvSaved=all.map(c=>({...c,scope:"BR",cargoCodigo:"1"})).sort((a,b)=>({"22":1,"13":2}[String(a.numero)]||9)-({"22":1,"13":2}[String(b.numero)]||9));favorites=tvSaved.map(c=>String(c.id));try{localStorage.setItem("eleicoesTV",JSON.stringify(tvSaved));localStorage.setItem("eleicoesFav",JSON.stringify(favorites))}catch(e){}}populateParties();filtered=[...all];page=1;render();$("state").textContent="Candidatos oficiais carregados";$("detail").textContent=`${all.length.toLocaleString("pt-BR")} registros • fonte TSE • base atualizada ${d.atualizado||""}`;$("updated").textContent="Carregado às "+new Date().toLocaleTimeString("pt-BR")}
+ try{let r=await fetchWithTimeout(file,{cache:"no-store"});if(!r.ok)throw new Error("Base ainda não gerada ("+r.status+")");let d=await r.json();all=d.candidatos||[];if(String(cargo.value)==="1"){all=all.filter(c=>TV_SEGUNDO_TURNO_NUMEROS.has(String(c.numero||"")));tvSaved=all.map(c=>({...c,scope:"BR",cargoCodigo:"1"})).sort((a,b)=>({"22":1,"13":2}[String(a.numero)]||9)-({"22":1,"13":2}[String(b.numero)]||9));favorites=tvSaved.map(c=>String(c.id));try{localStorage.setItem("eleicoesTV",JSON.stringify(tvSaved));localStorage.setItem("eleicoesFav",JSON.stringify(favorites))}catch(e){}}populateParties();filtered=[...all];page=1;render();$("state").textContent="Candidatos oficiais carregados";$("detail").textContent=`${all.length.toLocaleString("pt-BR")} registros • fonte TSE • base atualizada ${d.atualizado||""}`;$("updated").textContent="Carregado às "+new Date().toLocaleTimeString("pt-BR")}
  catch(e){all=[];filtered=[];render();$("state").textContent="Base local ainda indisponível";$("detail").textContent=e.message+". No GitHub, execute a Action “Atualizar candidatos TSE” uma vez."}
 }
 
@@ -327,21 +327,21 @@ async function load(){
 const RESULT_ROOT="https://resultados.tse.jus.br/oficial";
 const RESULT_BASE=RESULT_ROOT+"/ele2026";
 const FIRST_TURN_FED="6257",FIRST_TURN_STATE="6259";
-let secondTurnFed=null,secondTurnConfigCheckedAt=0;
+let secondTurnFed=safeJSON("eleicoesSecondTurn2026",null),secondTurnConfigCheckedAt=0;
+if(!/^\d+$/.test(String(secondTurnFed||"")))secondTurnFed=null;
 async function resolveSecondTurnFederalElection(){
  const now=Date.now();if(secondTurnFed&&now-secondTurnConfigCheckedAt<300000)return secondTurnFed;
  secondTurnConfigCheckedAt=now;
  try{
-  const r=await fetch(RESULT_ROOT+"/comum/config/ele-c.json?v="+now,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
-  const d=await r.json(),pool=[];
-  const walk=x=>{if(Array.isArray(x)){x.forEach(walk);return}if(x&&typeof x==="object"){pool.push(x);Object.values(x).forEach(walk)}};walk(d);
-  const cand=pool.filter(x=>{
-   const txt=norm([x.nm,x.nome,x.ds,x.descricao,x.nme,x.t,x.tipo,x.turno,x.nrTurno,x.nrt].filter(Boolean).join(" "));
-   const id=String(x.cd||x.codigo||x.id||x.eleicao||x.cdEleicao||x.cde||"");
-   return id&&((txt.includes("federal")||txt.includes("presidente"))&&(txt.includes("2 turno")||txt.includes("segundo turno")||String(x.turno||x.nrTurno||x.nrt||"")==="2"));
-  });
-  const hit=cand[0];if(hit)secondTurnFed=String(hit.cd||hit.codigo||hit.id||hit.eleicao||hit.cdEleicao||hit.cde||"");
- }catch(e){}
+  const r=await fetchWithTimeout(RESULT_ROOT+"/comum/config/ele-c.json?v="+now,{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
+  const d=await r.json();
+  const elections=(d.pl||[]).filter(p=>p.c==="ele2026").flatMap(p=>p.e||[]);
+  const federal=e=>String(e.cd)===FIRST_TURN_FED||((e.abr||[]).some(a=>(a.cp||[]).some(c=>String(c.cd)==="1")));
+  const explicit=elections.find(e=>federal(e)&&String(e.t)==="2");
+  const first=elections.find(e=>federal(e)&&String(e.t)==="1"&&/^\d+$/.test(String(e.cdt2||"")));
+  const code=explicit?.cd||first?.cdt2;
+  if(code&&/^\d+$/.test(String(code))){secondTurnFed=String(code);try{localStorage.setItem("eleicoesSecondTurn2026",JSON.stringify(secondTurnFed))}catch(e){}}
+ }catch(e){lastTSEError="Configuração TSE: "+(e.message||String(e))}
  return secondTurnFed;
 }
 async function secondTurnPresidentUrl(scope="br"){
@@ -349,12 +349,13 @@ async function secondTurnPresidentUrl(scope="br"){
  const abr=String(scope||"br").toLowerCase(),arq=String(ele).padStart(6,"0");
  return `${RESULT_BASE}/${ele}/dados/${abr}/${abr}-c0001-e${arq}-u.json`;
 }
-const LIVE_INTERVAL=30000,LIVE_CACHE_KEY="eleicoesLiveCache",LIVE_HISTORY_KEY="eleicoesLiveHistory";
+const LIVE_INTERVAL=30000,LIVE_CACHE_KEY="eleicoesLiveCache_2026_2",LIVE_HISTORY_KEY="eleicoesLiveHistory_2026_2";
 let liveVotes=safeJSON(LIVE_CACHE_KEY,{}),livePrevious={},liveTimer=null,liveTick=null,liveBusy=false,nextLiveAt=0,liveErrors=0;
 if(!liveVotes||Array.isArray(liveVotes)||typeof liveVotes!=="object")liveVotes={};
 let liveHistory=safeJSON(LIVE_HISTORY_KEY,{});
 if(!liveHistory||Array.isArray(liveHistory)||typeof liveHistory!=="object")liveHistory={};
-let liveGroupStatus={},nationalVoteSummary={valid:0,blank:0,nulls:0,total:0},lastTSESuccess=0,lastTSEError="";
+const liveMeta=safeJSON("eleicoesLiveMeta_2026_2",{});
+let liveGroupStatus=liveMeta?.groups&&typeof liveMeta.groups==="object"?liveMeta.groups:{},nationalVoteSummary=liveMeta?.summary&&typeof liveMeta.summary==="object"?liveMeta.summary:{valid:0,blank:0,nulls:0,total:0},lastTSESuccess=0,lastTSEError="";
 for(const v of Object.values(liveVotes)){if(v&&v.recebido)lastTSESuccess=Math.max(lastTSESuccess,Number(v.recebido)||0)}
 let exteriorVotes={};
 const FIRST_TURN_SNAPSHOT={"13":{votes:53879538,pct:"45,16"},"22":{votes:56104503,pct:"47,03"}};
@@ -409,7 +410,7 @@ async function loadPartyVotes(){
  if(cc==="7"&&sc==="DF"){partyVotesRows=[];sel.innerHTML='<option value="">Todos os partidos</option>';list.innerHTML='<div class="partyVotesStatus">No Distrito Federal, selecione Deputado Distrital.</div>';return}
  list.innerHTML='<div class="partyVotesStatus">Consultando resultado oficial do TSE…</div>';
  try{
-  const r=await fetch(partyResultUrl(sc,cc),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
+  const r=await fetchWithTimeout(partyResultUrl(sc,cc),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
   const d=await r.json(),map=new Map(),proportional=["6","7","8"].includes(cc);
   for(const cg of(d.carg||[]))for(const ag of(cg.agr||[]))for(const pa of(ag.par||[])){
    const key=String(pa.n||pa.sg||pa.nm),row=map.get(key)||{n:String(pa.n||""),sg:pa.sg||"",nm:pa.nm||"",nominal:0,legenda:0,total:0,proportional};
@@ -445,7 +446,7 @@ function electedUrl(cc){
 }
 async function fetchEA10(cc){
  const now=Date.now();if(ea10Cache[cc])return ea10Cache[cc];if(now<(ea10RetryAt[cc]||0))return null;
- try{const r=await fetch(electedUrl(cc),{cache:"no-store"});if(!r.ok){ea10RetryAt[cc]=now+120000;return null}const d=await r.json();ea10Cache[cc]=d;return d}
+ try{const r=await fetchWithTimeout(electedUrl(cc),{cache:"no-store"});if(!r.ok){ea10RetryAt[cc]=now+120000;return null}const d=await r.json();ea10Cache[cc]=d;return d}
  catch(e){ea10RetryAt[cc]=now+120000;return null}
 }
 function resultUrl(sc,cc){
@@ -467,7 +468,7 @@ async function updateElectedResults(){
  const localBases={};
  for(const [cc,office,scope] of jobs){
   try{
-   const [rr,pr]=await Promise.all([fetch(resultUrl(scope,cc),{cache:"no-store"}),fetch(`data/${scope}_${cc}.json?v=${Date.now()}`,{cache:"no-store"})]);
+   const [rr,pr]=await Promise.all([fetchWithTimeout(resultUrl(scope,cc),{cache:"no-store"}),fetchWithTimeout(`data/${scope}_${cc}.json?v=${Date.now()}`,{cache:"no-store"})]);
    if(!rr.ok)continue;const d=await rr.json();received++;if(scope===sc&&d.and==="f")stateFinal=true;
    let base=[];if(pr.ok){const b=await pr.json();base=Array.isArray(b)?b:(b.candidatos||b.data||[])}localBases[cc]=base;
    for(const x of flattenCandidates(d)){
@@ -504,8 +505,8 @@ async function updateExteriorResults(){
  if(!resultsOpen()){grid.innerHTML='<div class="tvWaiting">Aguardando início da divulgação oficial às 17:00 de Brasília.</div>';st.textContent=releaseWaitText();return}
  try{
   const [rr,pr]=await Promise.all([
-   fetch(exteriorResultUrl(),{cache:"no-store"}),
-   fetch("data/BR_1.json?v="+Date.now(),{cache:"no-store"})
+   fetchWithTimeout(exteriorResultUrl(),{cache:"no-store"}),
+   fetchWithTimeout("data/BR_1.json?v="+Date.now(),{cache:"no-store"})
   ]);
   if(!rr.ok)throw new Error("Resultado HTTP "+rr.status);
   const d=await rr.json(),base=pr.ok?await pr.json():[],cand=flattenCandidates(d),pct=d.s?.pstn??d.s?.pst??null;
@@ -528,7 +529,7 @@ function flattenCandidates(d){
  const out=[];for(const cg of(d.carg||[]))for(const ag of(cg.agr||[]))for(const pa of(ag.par||[]))for(const ca of(pa.cand||[]))out.push(ca);return out;
 }
 function saveLive(){
- try{localStorage.setItem(LIVE_CACHE_KEY,JSON.stringify(liveVotes));localStorage.setItem(LIVE_HISTORY_KEY,JSON.stringify(liveHistory))}catch(e){}
+ try{localStorage.setItem(LIVE_CACHE_KEY,JSON.stringify(liveVotes));localStorage.setItem(LIVE_HISTORY_KEY,JSON.stringify(liveHistory));localStorage.setItem("eleicoesLiveMeta_2026_2",JSON.stringify({groups:liveGroupStatus,summary:nationalVoteSummary}))}catch(e){}
 }
 function addHistory(key,v){
  const arr=liveHistory[key]||[];const last=arr[arr.length-1];
@@ -564,23 +565,23 @@ function renderDiagnostics(){
 function updateCountdown(){
  const el=$("tvNext");if(!el)return;if(!resultsOpen()){el.textContent=releaseWaitText();return}const s=Math.max(0,Math.ceil((nextLiveAt-Date.now())/1000));el.textContent=liveBusy?"consultando…":`próxima consulta em ${s}s`;
 }
-async function updateLiveResults(){
- if(liveBusy||!tvSaved.length||document.hidden)return;
+async function pollLiveResults(){
+ if(!tvSaved.length||document.hidden)return;
  if(resultsOpen())await resolveSecondTurnFederalElection();
  if(!resultsOpen()){
   const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot off"></span>'+releaseWaitText();
   nextLiveAt=RESULT_RELEASE_AT;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,Math.min(60000,Math.max(1000,RESULT_RELEASE_AT-Date.now())));renderTV(false);refreshMainLive();updateCountdown();return;
  }
  if(!secondTurnFed){const status=$("tvLiveStatus");if(status)status.textContent="Aguardando configuração oficial do 2º turno no TSE";nationalVoteSummary={valid:0,blank:0,nulls:0,total:0};renderCountProgress();nextLiveAt=Date.now()+60000;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,60000);return}
- liveBusy=true;const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot"></span>Consultando TSE…';
+ const status=$("tvLiveStatus");if(status)status.innerHTML='<span class="liveDot"></span>Consultando TSE…';
  const groups=new Map();
  for(const c of tvSaved){const cc=cargoCode(c);if(!cc)continue;const sc=cc==="1"?"BR":(c.scope||"MA"),k=sc+"_"+cc;if(!groups.has(k))groups.set(k,{sc,cc,items:[]});groups.get(k).items.push(c)}
- let ok=0,latest="";liveGroupStatus={};
+ let ok=0,latest="";
  for(const g of groups.values()){
   try{
-   const r=await fetch(resultUrl(g.sc,g.cc),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
+   const r=await fetchWithTimeout(resultUrl(g.sc,g.cc),{cache:"no-store"});if(!r.ok)throw new Error("HTTP "+r.status);
    const d=await r.json(),cand=flattenCandidates(d),pct=parseFloat(String(d.s?.pstn??d.s?.pst??"").replace(",","."));
-    if(g.sc==="BR"&&g.cc==="1"){const valid=numField(d,["s.vv","s.tvv","vv","tvv","vvc"]);const blank=numField(d,["s.vb","s.tvb","vb","tvb"]);const nulls=numField(d,["s.vn","s.tvn","vn","tvn"]);let total=numField(d,["s.vc","s.tvc","vc","tvc","s.votos"]);if(!total)total=valid+blank+nulls;nationalVoteSummary={valid,blank,nulls,total}}
+    if(g.sc==="BR"&&g.cc==="1"){const valid=numField(d,["v.vv","v.vvc","s.vv","s.tvv","vv","tvv","vvc"]);const blank=numField(d,["v.vb","s.vb","s.tvb","vb","tvb"]);const nulls=numField(d,["v.tvn","v.vn","s.vn","s.tvn","vn","tvn"]);let total=numField(d,["v.tv","s.vc","s.tvc","vc","tvc","s.votos"]);if(!total)total=valid+blank+nulls;nationalVoteSummary={valid,blank,nulls,total}}
    liveGroupStatus[g.sc+"_"+g.cc]={scope:g.sc,office:officeShort(g.cc),pct:Number.isFinite(pct)?pct:null,time:[d.dt,d.ht].filter(Boolean).join(" ")};
    latest=[d.dt,d.ht].filter(Boolean).join(" ")||latest;
    for(const c of g.items){
@@ -595,9 +596,25 @@ async function updateLiveResults(){
  await updateElectedResults();await updateExteriorResults();liveErrors=ok?0:liveErrors+1;saveLive();
  renderGroupStatus();renderCountProgress();renderVoteSummary();renderDiagnostics();
  if(status)status.innerHTML=ok?'<span class="liveDot"></span>'+(`Dados recebidos do TSE • ${latest||"atualizado agora"}`):'<span class="liveDot off"></span>'+(Object.keys(liveVotes).length?"Fonte temporariamente indisponível • exibindo último dado salvo":"Aguardando disponibilização dos resultados pelo TSE");
- liveBusy=false;
  const delay=ok?LIVE_INTERVAL:Math.min(120000,LIVE_INTERVAL*Math.max(1,liveErrors));
  nextLiveAt=Date.now()+delay;clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,delay);renderTV(false);refreshMainLive();updateCountdown();
+}
+async function fetchWithTimeout(url,options={}){
+ const controller=new AbortController(),timer=setTimeout(()=>controller.abort(),15000);
+ try{return await fetch(url,{...options,signal:controller.signal})}finally{clearTimeout(timer)}
+}
+async function updateLiveResults(){
+ if(liveBusy)return;
+ liveBusy=true;
+ try{await pollLiveResults()}catch(e){
+  liveErrors++;lastTSEError=e.message||String(e);
+  const status=$("tvLiveStatus");if(status)status.textContent="Falha temporária na consulta • tentando novamente automaticamente";
+ }finally{
+  liveBusy=false;
+  const delay=resultsOpen()?Math.min(120000,LIVE_INTERVAL*Math.max(1,liveErrors)):Math.min(60000,Math.max(1000,RESULT_RELEASE_AT-Date.now()));
+  nextLiveAt=resultsOpen()?Date.now()+delay:RESULT_RELEASE_AT;
+  clearTimeout(liveTimer);liveTimer=setTimeout(updateLiveResults,delay);
+ }
 }
 function startLive(){
  clearTimeout(liveTimer);clearInterval(liveTick);nextLiveAt=Date.now();updateLiveResults();liveTick=setInterval(updateCountdown,1000);
@@ -611,8 +628,8 @@ async function fetchRegionCandidate(c){
  const totals={};for(const [r,ufs] of Object.entries(REGION_UFS))totals[r]={votes:0,valid:0,ufs:[],ok:0};
  const jobs=Object.entries(REGION_UFS).flatMap(([reg,ufs])=>ufs.map(async UF=>{
   const uf=UF.toLowerCase(),arq=String(ele).padStart(6,"0"),url=`${RESULT_BASE}/${ele}/dados/${uf}/${uf}-c0001-e${arq}-u.json`;
-  try{const res=await fetch(url,{cache:"no-store"});if(!res.ok)throw 0;const d=await res.json(),cand=flattenCandidates(d),hit=cand.find(x=>String(x.n)===String(c.numero));if(!hit)return;
-   const votes=parseInt(hit.vap||"0",10)||0;let valid=parseInt(d.vc||d.vv||d.s?.tvv||"0",10)||0;
+  try{const res=await fetchWithTimeout(url,{cache:"no-store"});if(!res.ok)throw 0;const d=await res.json(),cand=flattenCandidates(d),hit=cand.find(x=>String(x.n)===String(c.numero));if(!hit)return;
+   const votes=parseInt(hit.vap||"0",10)||0;let valid=parseInt(d.v?.vv||d.vc||d.vv||d.s?.tvv||"0",10)||0;
    if(!valid){valid=cand.reduce((s,x)=>s+(parseInt(x.vap||"0",10)||0),0)}
    totals[reg].votes+=votes;totals[reg].valid+=valid;totals[reg].ufs.push({uf:UF,votes});totals[reg].ok++;
   }catch(e){}
@@ -650,7 +667,7 @@ function renderTV(startPolling=true){
  g.innerHTML=ordered.map(c=>`<article class="tvCard">${c.foto?`<img class="tvPhoto candidateHalo ${haloClass(c)}" src="${esc(c.foto)}" alt="Foto de ${esc(c.nome)}">`:`<div class="tvAvatar">${initials(c.nome)}</div>`}<div><div class="tvOffice">${esc(c.cargo||"CANDIDATO")} • ${esc(c.scope||"")}</div><div class="tvName">${esc(c.nome)}</div><div class="tvParty">${esc(c.partido||"")}</div><div class="tvStatus">${esc(c.situacao||"")}</div>${liveBlock(c)}<button class="regionBtn" onclick="openRegions(\'${c.id}\')">🌎 Votos por região</button></div><div class="tvNumber">${esc(c.numero)}</div></article>`).join("")
 }
 function openTV(){$("tvOverlay").classList.add("open");document.body.style.overflow="hidden";renderTV();updateTVControls();updateNet();if(resultsOpen()){updateElectedResults();updateExteriorResults()}else{updateElectedResults();updateExteriorResults()}startLive()}
-async function closeTV(){$("tvOverlay").classList.remove("open");document.body.style.overflow="";if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
+async function closeTV(){if(document.fullscreenElement===$("tvOverlay")){try{await document.exitFullscreen()}catch(e){}}$("tvOverlay").classList.remove("open");document.body.style.overflow="";if(wakeLock){await wakeLock.release();wakeLock=null}updateTVControls()}
 function tvClock(){let d=new Date();$("tvClock").textContent=d.toLocaleDateString("pt-BR")+" • "+d.toLocaleTimeString("pt-BR")}tvClock();setInterval(tvClock,1000);
 $("partyVotesBtn").onclick=openPartyVotes;$("partyVotesClose").onclick=closePartyVotes;$("partyVotesOverlay").onclick=e=>{if(e.target===$("partyVotesOverlay"))closePartyVotes()};
 $("partyVotesCargo").onchange=loadPartyVotes;$("partyVotesFilter").onchange=renderPartyVotes;
@@ -740,3 +757,4 @@ $("tvExteriorToggle").onclick=()=>{
 };
 </script>
 </body></html>
+
